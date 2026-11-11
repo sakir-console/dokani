@@ -1,0 +1,45 @@
+name: dokani
+description: "Dokani - shop management for Bangladesh"
+publish_to: 'none'
+
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  flutter_riverpod: ^3.5.0        # state management
+  go_router: ^18.1.4              # navigation
+  dio: ^5.11.1                    # HTTP client
+  flutter_secure_storage: ^11.2.0 # API token (Android Keystore)
+  shared_preferences: ^2.5.6      # language, cached session
+  intl: ^0.20.3                   # localisation and number formats
+  image_picker: ^1.2.4            # shop logo
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  mocktail: ^1.0.5
+
+flutter:
+  uses-material-design: true
+  generate: true
+
+  fonts:
+    # Covers Bengali and Latin. Bundled so Bangla looks the same on every phone.
+    - family: HindSiliguri
+      fonts:
+        - asset: assets/fonts/HindSiliguri-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/HindSiliguri-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/HindSiliguri-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/HindSiliguri-Bold.ttf
+          weight: 700
