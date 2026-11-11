@@ -1,0 +1,21 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../../app/Livewire/**/*.php';
+
+@theme {
+    /* System fonts only: no web-font download, and Bengali renders with the OS font. */
+    --font-sans: ui-sans-serif, system-ui, 'Segoe UI', 'Noto Sans', 'Noto Sans Bengali', 'Nirmala UI', sans-serif;
+
+    --color-brand-50: #ecfdf5;
+    --color-brand-100: #d1fae5;
+    --color-brand-500: #10b981;
+    --color-brand-600: #059669;
+    --color-brand-700: #047857;
+    --color-brand-900: #064e3b;
+}
+
+[x-cloak] {
+    display: none !important;
+}
