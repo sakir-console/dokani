@@ -1,17 +1,23 @@
-# dokani
+# Dokani mobile app
 
-Dokani - shop management for Bangladesh
+Flutter app for shop owners. Bangla by default, English available.
 
-## Getting Started
+Setup, run and test instructions: [`../docs/06-setup.md`](../docs/06-setup.md).
+Structure: [`../docs/04-project-structure.md`](../docs/04-project-structure.md).
 
-This project is a starting point for a Flutter application.
+## Layout
 
-A few resources to get you started if this is your first Flutter project:
+```
+lib/
+  app/         MaterialApp, router, theme
+  core/        API client, storage, validators, shared widgets
+  features/    one folder per feature: data / application / presentation
+  l10n/        app_bn.arb, app_en.arb (all user-facing text lives here)
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Rules for anyone adding code here
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+1. Screens never call Dio. They call a repository, which converts failures to `ApiException`.
+2. All user-facing text goes in both `.arb` files. No hard-coded strings in widgets.
+3. Hiding a button because of a role or plan is a convenience only; the server enforces it.
+4. A submit button uses `PrimaryButton` with `busy`, so a slow network cannot cause a double submit.

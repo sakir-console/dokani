@@ -76,8 +76,8 @@ Status column: ✅ implemented in Phase 1, otherwise the phase in which it is de
 
 | Method | Path | Notes |
 |---|---|---|
-| GET, POST | `/categories` | |
-| PATCH, DELETE | `/categories/{id}` | |
+| GET, POST | `/categories` | ✅ implemented in Phase 1 |
+| GET, PATCH, DELETE | `/categories/{id}` | ✅ implemented in Phase 1; delete is refused while sub-categories exist |
 | GET, POST | `/brands` | |
 | PATCH, DELETE | `/brands/{id}` | |
 | GET, POST | `/units` | built-in units + the shop's custom units |

@@ -142,7 +142,8 @@ One row per device login.
 | timestamps | | |
 
 #### `modules` (G)
-`id`, `key` unique (`pos`, `inventory`, `customers`, `due`, `vendors`, `reports`, `exports`, `offline`, `expenses`, `purchases`, `employees`, `branches`, `loyalty`, …), `name`, `description`, `is_core` (core modules cannot be disabled), `sort_order`, timestamps.
+`id`, `key` unique, `name`, `description`, `is_core` (core modules are in every plan and cannot be disabled), `is_available` (false for modules that are planned but not built; never granted), `sort_order`, timestamps.
+Core: `products`, `pos`, `customers`, `offline`. Optional: `inventory`, `vendors`, `reports`, `exports`, `global_catalog`. Planned: `expenses`, `purchases`, `employees`, `branches`, `loyalty`, `analytics`.
 
 #### `plan_module` (G pivot)
 `plan_id`, `module_id`. Primary key `(plan_id, module_id)`.
@@ -183,7 +184,8 @@ Global rows hold **no prices and no stock**. Importing copies them into the shop
 ### Shop catalogue
 
 #### `categories` (T)
-`id`, `shop_id`, `parent_id` null, `name`, `sort_order`, timestamps, deleted_at. Unique `(shop_id, parent_id, name)`.
+`id`, `shop_id`, `parent_id` null, `name`, `sort_order`, timestamps, deleted_at. Index `(shop_id, parent_id, name)`.
+Names are unique per shop and parent among non-deleted rows; this is enforced in validation, not by a unique index, so a deleted category's name can be reused.
 
 #### `brands` (T)
 `id`, `shop_id`, `name`, timestamps, deleted_at. Unique `(shop_id, name)`.

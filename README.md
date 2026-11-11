@@ -19,7 +19,11 @@ A multi-tenant shop management platform: a Flutter app for shop owners (products
 3. [API endpoints](docs/03-api.md)
 4. [Laravel, Flutter and admin panel structure](docs/04-project-structure.md)
 5. [Roadmap and feature status](docs/05-roadmap.md)
+6. [Setup, commands and testing](docs/06-setup.md)
 
 ## Status
 
-The project is under development and is **not production-ready**. See the status table in [`docs/05-roadmap.md`](docs/05-roadmap.md) for exactly what is built and tested.
+Phase 1 (foundation) is complete: authentication, multi-tenant isolation, plans and modules, the admin panel shell and the app's sign-in flow.
+Products, POS, dues, invoices, reports and offline selling are not built yet.
+
+The project is **not production-ready**. The status table in [`docs/05-roadmap.md`](docs/05-roadmap.md) says exactly what is built and tested.
