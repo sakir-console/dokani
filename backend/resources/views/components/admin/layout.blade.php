@@ -2,6 +2,7 @@
     $nav = [
         ['route' => 'admin.dashboard', 'match' => 'admin.dashboard', 'label' => 'Dashboard', 'icon' => 'M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10'],
         ['route' => 'admin.shops.index', 'match' => 'admin.shops.*', 'label' => 'Shops', 'icon' => 'M3 9l1.5-5h15L21 9M4 9v11h16V9M9 20v-6h6v6'],
+        ['route' => 'admin.catalog.index', 'match' => 'admin.catalog.*', 'label' => 'Catalogue', 'icon' => 'M4 7l8-4 8 4-8 4-8-4zM4 7v10l8 4 8-4V7M12 11v10'],
     ];
 @endphp
 <!DOCTYPE html>
