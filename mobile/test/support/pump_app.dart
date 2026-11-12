@@ -1,7 +1,10 @@
 import 'package:dokani/app/app.dart';
 import 'package:dokani/core/storage/preferences.dart';
 import 'package:dokani/features/auth/data/auth_repository.dart';
+import 'package:dokani/core/utils/external.dart';
 import 'package:dokani/features/catalog/data/catalog_repository.dart';
+import 'package:dokani/features/customers/data/customer_repository.dart';
+import 'package:dokani/features/pos/data/sales_repository.dart';
 import 'package:dokani/features/scanner/barcode_scan.dart';
 import 'package:dokani/features/shop/data/shop_repository.dart';
 import 'package:dokani/features/vendors/data/vendor_repository.dart';
@@ -12,10 +15,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'catalog_fakes.dart';
 import 'fakes.dart';
+import 'sales_fakes.dart';
+
+/// What the app tried to hand to the phone: text for the share sheet, links for the browser.
+class Outbox {
+  final List<String> shared = [];
+  final List<Uri> opened = [];
+}
 
 /// Starts the real app (router, theme, localisation) with fake repositories
 /// in place of the network. [locale] is the saved language; null means the
-/// app default, which is Bangla. [scanResult] is what the "camera" returns.
+/// app default, which is Bangla. [scanResult] is what the "camera" returns for
+/// a single scan; [scanCodes] are the codes seen by a continuous scan.
 Future<void> pumpApp(
   WidgetTester tester, {
   required FakeAuthRepository repository,
@@ -23,8 +34,20 @@ Future<void> pumpApp(
   ShopRepository? shopRepository,
   CatalogRepository? catalog,
   VendorRepository? vendors,
+  FakeCustomerRepository? customers,
+  FakeSalesRepository? sales,
   String? scanResult,
+  List<String> scanCodes = const [],
+  Outbox? outbox,
 }) async {
+  final catalogRepository = catalog ?? FakeCatalogRepository();
+  final customerRepository = customers ?? sales?.customers ?? FakeCustomerRepository();
+  final salesRepository = sales ??
+      FakeSalesRepository(
+        catalog: catalogRepository is FakeCatalogRepository ? catalogRepository : FakeCatalogRepository(),
+        customers: customerRepository,
+      );
+
   SharedPreferences.setMockInitialValues({'locale': ?locale});
   final preferences = await SharedPreferences.getInstance();
 
@@ -34,9 +57,21 @@ Future<void> pumpApp(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(preferences),
         authRepositoryProvider.overrideWithValue(repository),
-        catalogRepositoryProvider.overrideWithValue(catalog ?? FakeCatalogRepository()),
+        catalogRepositoryProvider.overrideWithValue(catalogRepository),
         vendorRepositoryProvider.overrideWithValue(vendors ?? FakeVendorRepository()),
+        customerRepositoryProvider.overrideWithValue(customerRepository),
+        salesRepositoryProvider.overrideWithValue(salesRepository),
         barcodeScanProvider.overrideWithValue((_) async => scanResult),
+        continuousScanProvider.overrideWithValue((_, onCode) async {
+          for (final code in scanCodes) {
+            await onCode(code);
+          }
+        }),
+        shareTextProvider.overrideWithValue((text) async => outbox?.shared.add(text)),
+        openUrlProvider.overrideWithValue((url) async {
+          outbox?.opened.add(url);
+          return true;
+        }),
         if (shopRepository != null) shopRepositoryProvider.overrideWithValue(shopRepository),
       ],
       child: const DokaniApp(),

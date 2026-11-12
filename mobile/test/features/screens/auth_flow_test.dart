@@ -55,7 +55,7 @@ void main() {
 
     expect(repository.lastLoginPhone, '01712345678');
     expect(find.text('Rahim Store'), findsOneWidget);
-    expect(find.text('Free plan'), findsOneWidget);
+    expect(find.text('Quick actions'), findsOneWidget);
   });
 
   testWidgets('a server error is shown on the form and the user stays signed out', (tester) async {
@@ -130,7 +130,7 @@ void main() {
     expect(sent.shopType, 'pharmacy');
     expect(sent.phone, '01712345678');
     expect(sent.locale, 'en');
-    expect(find.text('Free plan'), findsOneWidget, reason: 'Registration signs the owner in.');
+    expect(find.text('Quick actions'), findsOneWidget, reason: 'Registration signs the owner in.');
   });
 
   testWidgets('forgot password leads to the code screen and back to login', (tester) async {

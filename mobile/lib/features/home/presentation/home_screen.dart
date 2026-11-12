@@ -4,18 +4,20 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../app/theme/app_theme.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/message_banner.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/data/session.dart';
 import '../../catalog/application/catalog_providers.dart';
 import '../../catalog/presentation/products_screen.dart';
+import '../../pos/data/sales_repository.dart';
 import '../../shop/data/shop_types.dart';
 
 /// The signed-in landing screen.
 ///
-/// Shows the shop, a stock overview, quick actions for the catalogue, and the
-/// plan. Sales figures and the "New sale" action arrive with the POS (Phase 3).
+/// The dashboard: today's figures, stock alerts, the things a shopkeeper does
+/// most as large buttons, and the plan.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -43,7 +45,9 @@ class HomeScreen extends ConsumerWidget {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(stockSummaryProvider);
+          ref
+            ..invalidate(stockSummaryProvider)
+            ..invalidate(dashboardProvider);
           await ref.read(authControllerProvider.notifier).refresh();
         },
         child: ListView(
@@ -68,6 +72,8 @@ class HomeScreen extends ConsumerWidget {
             // A shop that is not active cannot use the catalogue; the server would refuse every call.
             if (session.shop.status == ShopStatus.active) ...[
               const SizedBox(height: 12),
+              const _TodayCard(),
+              const SizedBox(height: 12),
               const _StockCard(),
               const SizedBox(height: 12),
               _QuickActions(session: session),
@@ -77,6 +83,106 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Today's sales, profit (for roles allowed to see it), orders, items sold,
+/// and what customers owe in total.
+class _TodayCard extends ConsumerWidget {
+  const _TodayCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final text = Theme.of(context).textTheme;
+    final locale = Localizations.localeOf(context).languageCode;
+    final data = ref.watch(dashboardProvider).value;
+
+    String money(String? amount) => amount == null ? '–' : Formatters.money(amount, locale);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.today, style: text.titleSmall?.copyWith(color: AppColors.textMuted)),
+            const SizedBox(height: 4),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(money(data?.sales), style: text.headlineMedium),
+                      Text(l10n.todaySales, style: text.bodyMedium?.copyWith(color: AppColors.textMuted)),
+                    ],
+                  ),
+                ),
+                // Profit is not the same number as sales, and not every role sees it.
+                if (data?.profit != null)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(money(data!.profit), style: text.titleLarge?.copyWith(color: AppColors.brandDark)),
+                      Text(l10n.todayProfit, style: text.bodyMedium?.copyWith(color: AppColors.textMuted)),
+                    ],
+                  ),
+              ],
+            ),
+            const Divider(height: 28),
+            Row(
+              children: [
+                Expanded(
+                  child: _MiniStat(
+                    label: l10n.todayOrders,
+                    value: data == null ? '–' : NumberFormat.decimalPattern(locale).format(data.orders),
+                  ),
+                ),
+                Expanded(
+                  child: _MiniStat(
+                    label: l10n.itemsSold,
+                    value: data == null ? '–' : Formatters.quantity(data.itemsSold, locale),
+                  ),
+                ),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => context.push('/customers?due=1'),
+                    child: _MiniStat(
+                      label: l10n.customerDue,
+                      value: money(data?.totalCustomerDue),
+                      color: (double.tryParse(data?.totalCustomerDue ?? '0') ?? 0) > 0 ? AppColors.danger : null,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniStat extends StatelessWidget {
+  const _MiniStat({required this.label, required this.value, this.color});
+
+  final String label;
+  final String value;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(value, style: text.titleMedium?.copyWith(color: color)),
+        Text(label, style: text.bodySmall?.copyWith(color: AppColors.textMuted), maxLines: 2),
+      ],
     );
   }
 }
@@ -171,6 +277,10 @@ class _QuickActions extends ConsumerWidget {
 
     // (key, icon, label, action). The key gives each button a stable identity.
     final actions = <(String, IconData, String, VoidCallback)>[
+      if (session.can('pos.sell')) ('new-sale', Icons.point_of_sale, l10n.newSale, () => context.push('/pos')),
+      if (session.can('due.collect')) ('collect-due', Icons.payments_outlined, l10n.collectDue, () => context.push('/customers?due=1')),
+      ('sales', Icons.receipt_long_outlined, l10n.salesHistory, () => context.push('/sales')),
+      ('customers', Icons.people_outline, l10n.customers, () => context.push('/customers')),
       ('products', Icons.inventory_2_outlined, l10n.products, () => context.push('/products')),
       if (canManage) ('add-product', Icons.add_box_outlined, l10n.addProduct, () => context.push('/products/new')),
       ('scan', Icons.qr_code_scanner, l10n.scanBarcode, () => scanAndOpenProduct(context, ref)),
@@ -200,18 +310,22 @@ class _QuickActions extends ConsumerWidget {
                     width: width,
                     child: Card(
                       clipBehavior: Clip.antiAlias,
+                      // Selling is the main job: its button is filled, the rest are outlined.
+                      color: id == 'new-sale' ? AppColors.brand : null,
                       child: InkWell(
                         onTap: onTap,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
                           child: Row(
                             children: [
-                              Icon(icon, color: AppColors.brand, size: 26),
+                              Icon(icon, color: id == 'new-sale' ? Colors.white : AppColors.brand, size: 26),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
                                   label,
-                                  style: Theme.of(context).textTheme.titleSmall,
+                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                        color: id == 'new-sale' ? Colors.white : null,
+                                      ),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),

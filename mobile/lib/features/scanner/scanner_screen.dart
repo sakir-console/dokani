@@ -1,11 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../app/theme/app_theme.dart';
 import '../../core/widgets/dialogs.dart';
 import '../../l10n/app_localizations.dart';
+import 'barcode_scan.dart';
 
-/// Full-screen barcode / QR scanner. Pops with the scanned code.
+/// Full-screen barcode / QR scanner.
+///
+/// Without [onCode] it pops with the first code scanned. With [onCode] it
+/// stays open: every code is passed on, the result is shown at the top, and
+/// scanning continues — the same code scanned again counts again.
 ///
 /// Tuned for low-end phones:
 ///  - the camera starts on its own and scanning needs no button
@@ -14,7 +22,9 @@ import '../../l10n/app_localizations.dart';
 ///  - only retail formats and QR are searched for
 ///  - the frame guide is static; nothing is animated over the preview
 class ScannerScreen extends StatefulWidget {
-  const ScannerScreen({super.key});
+  const ScannerScreen({super.key, this.onCode});
+
+  final Future<ScanFeedback> Function(String code)? onCode;
 
   @override
   State<ScannerScreen> createState() => _ScannerScreenState();
@@ -37,6 +47,14 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   bool _done = false;
 
+  // Continuous mode.
+  bool _handling = false;
+  String? _lastCode;
+  DateTime _lastAt = DateTime.fromMillisecondsSinceEpoch(0);
+  ScanFeedback? _feedback;
+
+  bool get _continuous => widget.onCode != null;
+
   @override
   void dispose() {
     _controller.dispose();
@@ -44,11 +62,36 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
   void _finish(String code) {
+    if (_continuous) {
+      _handle(code);
+      return;
+    }
     if (_done || !mounted) return;
     _done = true;
     HapticFeedback.mediumImpact();
     SystemSound.play(SystemSoundType.click);
     Navigator.of(context).pop(code);
+  }
+
+  Future<void> _handle(String code) async {
+    final now = DateTime.now();
+    // The camera sees the same barcode many times a second. Holding it steady
+    // counts once; showing it again after a short pause counts again.
+    if (_handling || (code == _lastCode && now.difference(_lastAt) < const Duration(milliseconds: 1500))) return;
+
+    _handling = true;
+    _lastCode = code;
+    _lastAt = now;
+
+    final feedback = await widget.onCode!(code);
+    if (!mounted) return;
+
+    // A light buzz and click for "added"; a heavier one for "not found" or "out of stock".
+    unawaited(feedback.ok ? HapticFeedback.mediumImpact() : HapticFeedback.heavyImpact());
+    unawaited(SystemSound.play(feedback.ok ? SystemSoundType.click : SystemSoundType.alert));
+    setState(() => _feedback = feedback);
+    _lastAt = DateTime.now();
+    _handling = false;
   }
 
   void _onDetect(BarcodeCapture capture) {
@@ -114,6 +157,26 @@ class _ScannerScreenState extends State<ScannerScreen> {
             ),
             overlayBuilder: (context, constraints) => const _FrameGuide(),
           ),
+          if (_feedback != null)
+            Align(
+              alignment: Alignment.topCenter,
+              child: Semantics(
+                liveRegion: true,
+                child: Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: _feedback!.ok ? AppColors.brandDark : AppColors.danger,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _feedback!.message,
+                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ),
           Align(
             alignment: Alignment.bottomCenter,
             child: SafeArea(
@@ -122,8 +185,19 @@ class _ScannerScreenState extends State<ScannerScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(l10n.scanHint, style: const TextStyle(color: Colors.white, fontSize: 16)),
+                    Text(
+                      _continuous ? l10n.scanContinuousHint : l10n.scanHint,
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                    ),
                     const SizedBox(height: 12),
+                    if (_continuous) ...[
+                      FilledButton(
+                        style: FilledButton.styleFrom(minimumSize: const Size(200, 52)),
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text(l10n.done),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.white,

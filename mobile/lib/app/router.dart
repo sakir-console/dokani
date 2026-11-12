@@ -13,7 +13,14 @@ import '../features/catalog/presentation/categories_screen.dart';
 import '../features/catalog/presentation/product_detail_screen.dart';
 import '../features/catalog/presentation/product_form_screen.dart';
 import '../features/catalog/presentation/products_screen.dart';
+import '../features/customers/presentation/customer_detail_screen.dart';
+import '../features/customers/presentation/customers_screen.dart';
 import '../features/home/presentation/home_screen.dart';
+import '../features/pos/presentation/cart_screen.dart';
+import '../features/pos/presentation/checkout_screen.dart';
+import '../features/pos/presentation/invoice_screen.dart';
+import '../features/pos/presentation/pos_screen.dart';
+import '../features/pos/presentation/sales_screen.dart';
 import '../features/scanner/scanner_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/shop/presentation/edit_shop_screen.dart';
@@ -90,6 +97,39 @@ final routerProvider = Provider<GoRouter>((ref) {
                 builder: (_, state) => ProductFormScreen(productId: int.parse(state.pathParameters['id']!)),
               ),
             ],
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/pos',
+        builder: (_, _) => const PosScreen(),
+        routes: [
+          GoRoute(path: 'cart', builder: (_, _) => const CartScreen()),
+          GoRoute(path: 'checkout', builder: (_, _) => const CheckoutScreen()),
+        ],
+      ),
+      GoRoute(
+        path: '/sales',
+        builder: (_, _) => const SalesScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            redirect: (_, state) => int.tryParse(state.pathParameters['id']!) == null ? '/sales' : null,
+            builder: (_, state) => InvoiceScreen(
+              saleId: int.parse(state.pathParameters['id']!),
+              justCompleted: state.uri.queryParameters['new'] == '1',
+            ),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/customers',
+        builder: (_, state) => CustomersScreen(dueOnly: state.uri.queryParameters['due'] == '1'),
+        routes: [
+          GoRoute(
+            path: ':id',
+            redirect: (_, state) => int.tryParse(state.pathParameters['id']!) == null ? '/customers' : null,
+            builder: (_, state) => CustomerDetailScreen(customerId: int.parse(state.pathParameters['id']!)),
           ),
         ],
       ),

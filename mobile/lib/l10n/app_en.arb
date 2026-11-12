@@ -308,5 +308,197 @@
         "type": "String"
       }
     }
-  }
+  },
+  "newSale": "New sale",
+  "collectDue": "Collect due",
+  "salesHistory": "Sales",
+  "customers": "Customers",
+  "today": "Today",
+  "todaySales": "Sales",
+  "todayProfit": "Profit",
+  "todayOrders": "Orders",
+  "itemsSold": "Items sold",
+  "customerDue": "Customer due",
+  "cart": "Cart",
+  "cartEmptyTitle": "The cart is empty",
+  "cartEmptyBody": "Tap a product or scan a barcode to add it.",
+  "cartSummary": "{count} items · {total}",
+  "@cartSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "viewCart": "View cart",
+  "checkout": "Checkout",
+  "chooseVariant": "Choose a variant",
+  "addedToCart": "{name} added ({quantity})",
+  "@addedToCart": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "quantity": {
+        "type": "String"
+      }
+    }
+  },
+  "notEnoughStock": "Only {available} in stock",
+  "@notEnoughStock": {
+    "placeholders": {
+      "available": {
+        "type": "String"
+      }
+    }
+  },
+  "subtotal": "Subtotal",
+  "discount": "Discount",
+  "additionalCharge": "Additional charge",
+  "grandTotal": "Total",
+  "remove": "Remove",
+  "clearCart": "Clear cart",
+  "clearCartConfirm": "Remove everything from the cart?",
+  "errDiscountTooLarge": "The discount is larger than the amount",
+  "payment": "Payment",
+  "cashReceived": "Cash received",
+  "change": "Change to return",
+  "paid": "Paid",
+  "due": "Due",
+  "addPayment": "Add bKash, Nagad or other payment",
+  "amount": "Amount",
+  "transactionId": "Transaction ID",
+  "methodCash": "Cash",
+  "methodBkash": "bKash",
+  "methodNagad": "Nagad",
+  "methodBank": "Bank",
+  "methodCard": "Card",
+  "methodOther": "Other",
+  "paymentMethod": "Payment method",
+  "paymentsExceedTotal": "The payments are more than the total",
+  "dueNeedsCustomer": "{amount} will stay due. Enter the customer's mobile number.",
+  "@dueNeedsCustomer": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPhone": "Customer's mobile number",
+  "customerName": "Customer's name",
+  "customerFound": "{name} · already owes {due}",
+  "@customerFound": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "due": {
+        "type": "String"
+      }
+    }
+  },
+  "customerFoundNoDue": "{name}",
+  "@customerFoundNoDue": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "customerNew": "New customer. Enter their name to open an account.",
+  "addCustomerOptional": "Add customer (optional)",
+  "completeSale": "Complete sale",
+  "saleCompleted": "Sale completed",
+  "invoice": "Invoice",
+  "invoiceNo": "Invoice {number}",
+  "@invoiceNo": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "share": "Share",
+  "downloadPdf": "PDF",
+  "scanToView": "Scan to view this invoice",
+  "shareInvoiceText": "{shop}\nInvoice {number}\nTotal: {total}\n{url}",
+  "@shareInvoiceText": {
+    "placeholders": {
+      "shop": {
+        "type": "String"
+      },
+      "number": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "voidSale": "Cancel sale",
+  "voidReason": "Reason for cancelling",
+  "voidConfirmHint": "Stock goes back, the due is removed and payments are recorded as refunded.",
+  "saleVoided": "Sale cancelled",
+  "cancelled": "Cancelled",
+  "walkInCustomer": "Walk-in customer",
+  "noSalesTitle": "No sales yet",
+  "noSalesBody": "Completed sales appear here.",
+  "loadMore": "Load more",
+  "searchCustomers": "Search by name or mobile number",
+  "withDue": "With due",
+  "noCustomersTitle": "No customers yet",
+  "noCustomersBody": "Customers are added when you sell on due, or you can add them here.",
+  "noDuesTitle": "Nobody owes you money",
+  "addCustomer": "Add customer",
+  "editCustomer": "Edit customer",
+  "openingDue": "Already owes (optional)",
+  "totalPurchases": "Total purchases",
+  "totalPaid": "Total paid",
+  "outstandingDue": "Outstanding due",
+  "advance": "Advance {amount}",
+  "@advance": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ledger": "Ledger",
+  "ledgerOpening": "Opening balance",
+  "ledgerSaleDue": "Sale on due",
+  "ledgerPayment": "Payment received",
+  "ledgerSaleVoid": "Sale cancelled",
+  "ledgerAdjustment": "Adjustment",
+  "balance": "Balance {amount}",
+  "@balance": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "noLedgerTitle": "No transactions yet",
+  "collectAmount": "Amount received",
+  "collectFull": "Full amount",
+  "dueCollected": "Payment recorded",
+  "errAmountExceedsDue": "This is more than the customer owes",
+  "recentSales": "Recent sales",
+  "scanContinuousHint": "Scan products one after another",
+  "scanUnknown": "No product with barcode {code}",
+  "@scanUnknown": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "done": "Done",
+  "quantityLabel": "Quantity",
+  "unverifiedNote": "Entered by hand. Check the payment in your bKash/Nagad app."
 }

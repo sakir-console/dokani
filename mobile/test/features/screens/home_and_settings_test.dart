@@ -31,6 +31,8 @@ void main() {
     await pumpApp(tester, repository: signedIn(), locale: 'en');
 
     expect(find.text('Rahim Store'), findsOneWidget);
+    // The plan card sits below today's figures and the quick actions.
+    await tester.scrollUntilVisible(find.text('Included features'), 200, scrollable: find.byType(Scrollable).first);
     expect(find.text('Free plan'), findsOneWidget);
     expect(find.text('No expiry'), findsOneWidget);
     expect(find.text('50'), findsOneWidget);
@@ -41,6 +43,9 @@ void main() {
   testWidgets('the home screen is in Bangla by default', (tester) async {
     await pumpApp(tester, repository: signedIn());
 
+    expect(find.text('আজ'), findsOneWidget);
+    expect(find.text('নতুন বিক্রি'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('যা যা ব্যবহার করতে পারবেন'), 200, scrollable: find.byType(Scrollable).first);
     expect(find.text('Free প্যাকেজ'), findsOneWidget);
     expect(find.text('বিক্রয় (POS)'), findsOneWidget);
   });
