@@ -57,7 +57,9 @@ class SaleSubmitter {
     final database = _ref.read(localDatabaseProvider);
     final sales = _ref.read(salesRepositoryProvider);
     final soldAt = DateTime.now();
-    final offlineRef = 'OFF-${draft.clientUuid.substring(0, 8).toUpperCase()}';
+    // A short reference the cashier can read out; the full id is what makes the sale unique.
+    final compact = draft.clientUuid.replaceAll('-', '').toUpperCase();
+    final offlineRef = 'OFF-${compact.length > 8 ? compact.substring(0, 8) : compact}';
 
     if (database == null) {
       return SubmittedSale.confirmed(await sales.createSale(draft, soldAt: soldAt));
