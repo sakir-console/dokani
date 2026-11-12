@@ -21,6 +21,7 @@ import '../features/pos/presentation/checkout_screen.dart';
 import '../features/pos/presentation/invoice_screen.dart';
 import '../features/pos/presentation/pos_screen.dart';
 import '../features/pos/presentation/sales_screen.dart';
+import '../features/reports/presentation/reports_screen.dart';
 import '../features/scanner/scanner_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/shop/presentation/edit_shop_screen.dart';
@@ -133,6 +134,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
+      GoRoute(path: '/reports', builder: (_, _) => const ReportsScreen()),
       GoRoute(path: '/categories', builder: (_, _) => const CategoriesScreen()),
       GoRoute(path: '/vendors', builder: (_, _) => const VendorsScreen()),
       GoRoute(path: '/scan', builder: (_, _) => const ScannerScreen()),

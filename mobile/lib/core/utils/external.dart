@@ -14,3 +14,11 @@ final shareTextProvider = Provider<Future<void> Function(String text)>(
 final openUrlProvider = Provider<Future<bool> Function(Uri url)>(
   (ref) => (url) => launchUrl(url, mode: LaunchMode.externalApplication),
 );
+
+/// Hands a file to the phone's share sheet: save it, open it in Excel or a
+/// PDF reader, or send it by WhatsApp or email.
+final shareFileProvider = Provider<Future<void> Function(String path, String name)>(
+  (ref) => (path, name) async {
+    await SharePlus.instance.share(ShareParams(files: [XFile(path, name: name)]));
+  },
+);

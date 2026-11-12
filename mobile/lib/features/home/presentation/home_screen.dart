@@ -281,6 +281,9 @@ class _QuickActions extends ConsumerWidget {
       if (session.can('due.collect')) ('collect-due', Icons.payments_outlined, l10n.collectDue, () => context.push('/customers?due=1')),
       ('sales', Icons.receipt_long_outlined, l10n.salesHistory, () => context.push('/sales')),
       ('customers', Icons.people_outline, l10n.customers, () => context.push('/customers')),
+      // Reports show cost and profit: only for roles and plans that include them.
+      if (session.hasModule('reports') && session.can('reports.view'))
+        ('reports', Icons.bar_chart, l10n.reports, () => context.push('/reports')),
       ('products', Icons.inventory_2_outlined, l10n.products, () => context.push('/products')),
       if (canManage) ('add-product', Icons.add_box_outlined, l10n.addProduct, () => context.push('/products/new')),
       ('scan', Icons.qr_code_scanner, l10n.scanBarcode, () => scanAndOpenProduct(context, ref)),

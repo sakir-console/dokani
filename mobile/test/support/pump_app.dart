@@ -5,6 +5,7 @@ import 'package:dokani/core/utils/external.dart';
 import 'package:dokani/features/catalog/data/catalog_repository.dart';
 import 'package:dokani/features/customers/data/customer_repository.dart';
 import 'package:dokani/features/pos/data/sales_repository.dart';
+import 'package:dokani/features/reports/data/report_repository.dart';
 import 'package:dokani/features/scanner/barcode_scan.dart';
 import 'package:dokani/features/shop/data/shop_repository.dart';
 import 'package:dokani/features/vendors/data/vendor_repository.dart';
@@ -15,12 +16,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'catalog_fakes.dart';
 import 'fakes.dart';
+import 'report_fakes.dart';
 import 'sales_fakes.dart';
 
 /// What the app tried to hand to the phone: text for the share sheet, links for the browser.
 class Outbox {
   final List<String> shared = [];
   final List<Uri> opened = [];
+  final List<String> files = [];
 }
 
 /// Starts the real app (router, theme, localisation) with fake repositories
@@ -36,6 +39,7 @@ Future<void> pumpApp(
   VendorRepository? vendors,
   FakeCustomerRepository? customers,
   FakeSalesRepository? sales,
+  FakeReportRepository? reports,
   String? scanResult,
   List<String> scanCodes = const [],
   Outbox? outbox,
@@ -67,7 +71,9 @@ Future<void> pumpApp(
             await onCode(code);
           }
         }),
+        reportRepositoryProvider.overrideWithValue(reports ?? FakeReportRepository()),
         shareTextProvider.overrideWithValue((text) async => outbox?.shared.add(text)),
+        shareFileProvider.overrideWithValue((path, name) async => outbox?.files.add(name)),
         openUrlProvider.overrideWithValue((url) async {
           outbox?.opened.add(url);
           return true;

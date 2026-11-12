@@ -500,5 +500,85 @@
   },
   "done": "Done",
   "quantityLabel": "Quantity",
-  "unverifiedNote": "Entered by hand. Check the payment in your bKash/Nagad app."
+  "unverifiedNote": "Entered by hand. Check the payment in your bKash/Nagad app.",
+  "reports": "Reports",
+  "rangeToday": "Today",
+  "rangeYesterday": "Yesterday",
+  "rangeLast7Days": "Last 7 days",
+  "rangeThisWeek": "This week",
+  "rangeThisMonth": "This month",
+  "rangeCustom": "Custom",
+  "totalSales": "Total sales",
+  "grossProfit": "Gross profit",
+  "totalOrders": "Orders",
+  "totalItemsSold": "Items sold",
+  "totalPaidLabel": "Paid",
+  "totalDueLabel": "Due",
+  "totalDiscounts": "Discounts",
+  "additionalCharges": "Additional charges",
+  "costOfGoods": "Cost of goods sold",
+  "dueCollectedLabel": "Due collected",
+  "cancelledSales": "Cancelled sales",
+  "cancelledSalesValue": "{count} · {amount}",
+  "@cancelledSalesValue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "profitExplained": "Profit = sales of goods after discounts − what those goods cost you.",
+  "byPaymentMethod": "Money received",
+  "netReceived": "Net received",
+  "includesDueCollected": "includes {amount} due collected",
+  "@includesDueCollected": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "refunded": "{amount} refunded",
+  "@refunded": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "soldOnDue": "Sold on due",
+  "noPaymentsInPeriod": "No payments in this period",
+  "bestSellers": "Best-selling products",
+  "byQuantity": "By quantity",
+  "byRevenue": "By sales",
+  "noSalesInPeriod": "No sales in this period",
+  "profitValue": "Profit {amount}",
+  "@profitValue": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "moreReports": "More",
+  "lowStockReport": "Low-stock products",
+  "duesReport": "Customer dues",
+  "export": "Export",
+  "exportWhat": "What to export",
+  "exportFormat": "File type",
+  "exportSummary": "Summary",
+  "exportPaymentMethods": "Money received",
+  "exportBestSellers": "Best sellers",
+  "exportSales": "Sales history",
+  "exportDues": "Customer dues",
+  "exportLowStock": "Low stock",
+  "formatExcel": "Excel",
+  "formatCsv": "CSV",
+  "formatPdf": "PDF",
+  "exportNotInPlan": "Export is not included in your plan.",
+  "reportsNotInPlan": "Reports are not included in your plan.",
+  "preparingFile": "Preparing the file…"
 }
