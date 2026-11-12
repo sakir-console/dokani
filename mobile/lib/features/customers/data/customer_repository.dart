@@ -26,6 +26,18 @@ class Customer {
   final String totalPurchases;
   final String totalPaid;
 
+  /// The same shape the API sends, so a customer can be kept in the phone's cache.
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'phone': phone,
+        'address': address,
+        'notes': notes,
+        'current_due': currentDue,
+        'total_purchases': totalPurchases,
+        'total_paid': totalPaid,
+      };
+
   /// What the customer owes, as a number, for comparisons on screen only.
   double get dueValue => double.tryParse(currentDue) ?? 0;
 

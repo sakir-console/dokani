@@ -11,7 +11,14 @@ class SalesRepository {
 
   final Dio _dio;
 
-  Future<Sale> createSale(SaleDraft draft) => _one(() => _dio.post<Map<String, dynamic>>('/sales', data: draft.toJson()));
+  /// [soldAt] is the moment the cashier completed the sale. [offlineRef] is the
+  /// reference shown on the phone; the server ignores it for an online sale.
+  Future<Sale> createSale(SaleDraft draft, {DateTime? soldAt, String? offlineRef}) => _one(
+        () => _dio.post<Map<String, dynamic>>(
+          '/sales',
+          data: {...draft.toJson(), if (soldAt != null) 'sold_at': soldAt.toUtc().toIso8601String(), 'offline_ref': ?offlineRef},
+        ),
+      );
 
   Future<Sale> sale(int id) => _one(() => _dio.get<Map<String, dynamic>>('/sales/$id'));
 

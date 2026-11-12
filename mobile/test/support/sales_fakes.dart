@@ -143,7 +143,7 @@ class FakeSalesRepository implements SalesRepository {
   List<Sale> get all => List.unmodifiable(_sales);
 
   @override
-  Future<Sale> createSale(SaleDraft draft) async {
+  Future<Sale> createSale(SaleDraft draft, {DateTime? soldAt, String? offlineRef}) async {
     received.add(draft);
 
     final failure = failNext;
