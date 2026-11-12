@@ -24,13 +24,17 @@ use Illuminate\Support\Facades\DB;
 class StockService
 {
     /**
-     * @param  array{unit_cost?: ?string, vendor_id?: ?int, note?: ?string, reference?: ?Model, allow_negative?: bool}  $options
+     * @param  array{unit_cost?: ?string, vendor_id?: ?int, note?: ?string, reference?: ?Model, allow_negative?: bool, include_deleted?: bool}  $options
      */
     public function change(int $variantId, StockMovementType $type, BigDecimal|string $signedQuantity, ?User $actor = null, array $options = []): StockMovement
     {
         return DB::transaction(function () use ($variantId, $type, $signedQuantity, $actor, $options) {
             /** @var ProductVariant|null $variant */
-            $variant = ProductVariant::query()->with('product.unit')->lockForUpdate()->find($variantId);
+            // include_deleted: returning stock for a voided sale must work even if the product was deleted since.
+            $variant = ProductVariant::query()
+                ->when($options['include_deleted'] ?? false, fn ($q) => $q->withTrashed())
+                ->with(['product' => fn ($q) => $q->withTrashed()->with('unit')])
+                ->lockForUpdate()->find($variantId);
 
             if ($variant === null) {
                 throw new ApiException('VARIANT_NOT_FOUND', __('The product was not found.'), 404);

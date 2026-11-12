@@ -4,14 +4,18 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BarcodeController;
 use App\Http\Controllers\Api\V1\BrandController;
 use App\Http\Controllers\Api\V1\CategoryController;
+use App\Http\Controllers\Api\V1\CustomerController;
+use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\GlobalCatalogController;
 use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\MetaController;
 use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\SaleController;
 use App\Http\Controllers\Api\V1\ShopController;
 use App\Http\Controllers\Api\V1\StockController;
 use App\Http\Controllers\Api\V1\UnitController;
 use App\Http\Controllers\Api\V1\VendorController;
+use App\Http\Controllers\PublicInvoiceController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -25,6 +29,9 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('meta', MetaController::class);
+
+// The invoice behind a receipt's QR code. No login; the random token is the credential.
+Route::get('public/invoices/{token}', [PublicInvoiceController::class, 'json'])->middleware('throttle:public-invoice');
 
 Route::prefix('auth')->middleware('throttle:auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);
@@ -93,6 +100,34 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
 
                 // The full movement history is the paid "inventory" module.
                 Route::get('stock/movements', [StockController::class, 'movements'])->middleware('module:inventory');
+            });
+
+            Route::get('dashboard', DashboardController::class);
+
+            Route::middleware('module:customers')->group(function () {
+                Route::get('customers', [CustomerController::class, 'index']);
+                Route::get('customers/lookup', [CustomerController::class, 'lookup']);
+                Route::get('customers/{customer}', [CustomerController::class, 'show']);
+                Route::get('customers/{customer}/ledger', [CustomerController::class, 'ledger']);
+                Route::get('customers/{customer}/sales', [CustomerController::class, 'sales']);
+                Route::get('customers/{customer}/payments', [CustomerController::class, 'payments']);
+
+                Route::middleware('permission:customers.manage')->group(function () {
+                    Route::post('customers', [CustomerController::class, 'store']);
+                    Route::patch('customers/{customer}', [CustomerController::class, 'update']);
+                    Route::delete('customers/{customer}', [CustomerController::class, 'destroy']);
+                });
+
+                Route::post('customers/{customer}/collect-due', [CustomerController::class, 'collectDue'])
+                    ->middleware('permission:due.collect');
+            });
+
+            Route::middleware('module:pos')->group(function () {
+                Route::get('sales', [SaleController::class, 'index']);
+                Route::get('sales/{sale}', [SaleController::class, 'show']);
+                Route::get('sales/{sale}/invoice.pdf', [SaleController::class, 'pdf']);
+                Route::post('sales', [SaleController::class, 'store'])->middleware('permission:pos.sell');
+                Route::post('sales/{sale}/void', [SaleController::class, 'void'])->middleware('permission:sales.void');
             });
 
             Route::middleware('module:vendors')->group(function () {

@@ -6,12 +6,10 @@ use App\Enums\StockMovementType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StockRequest;
 use App\Http\Resources\StockMovementResource;
-use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\StockMovement;
 use App\Services\Inventory\StockService;
-use App\Services\Tenancy\TenantContext;
-use Illuminate\Database\Eloquent\Builder;
+use App\Services\Reports\DashboardService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -78,24 +76,10 @@ class StockController extends Controller
         );
     }
 
-    /** Counts for the dashboard: products, and how many have a low or empty variant. */
-    public function summary(TenantContext $tenant): JsonResponse
+    /** Counts of products, and how many have a low or empty variant. */
+    public function summary(DashboardService $dashboard): JsonResponse
     {
-        $defaultThreshold = $tenant->shop()->resolvedSettings()['low_stock_threshold'];
-
-        $having = fn (string $state) => Product::query()->whereHas('variants', function (Builder $q) use ($state, $defaultThreshold) {
-            $q->join('products as p', 'p.id', '=', 'product_variants.product_id');
-            $state === 'out'
-                ? $q->where('product_variants.stock_quantity', '<=', 0)
-                : $q->where('product_variants.stock_quantity', '>', 0)
-                    ->whereRaw('product_variants.stock_quantity <= coalesce(p.low_stock_threshold, ?)', [$defaultThreshold]);
-        })->count();
-
-        return response()->json(['data' => [
-            'total_products' => Product::query()->count(),
-            'low_stock_products' => $having('low'),
-            'out_of_stock_products' => $having('out'),
-        ]]);
+        return response()->json(['data' => $dashboard->stock()]);
     }
 
     private function respond(StockMovement $movement, int $status): JsonResponse

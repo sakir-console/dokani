@@ -19,6 +19,7 @@ use Database\Seeders\PlanSeeder;
 use Database\Seeders\UnitSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Str;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -79,6 +80,22 @@ abstract class TestCase extends BaseTestCase
             'has_variants' => $variants !== null && count($variants) > 1,
             'variants' => $variants ?? [['purchase_price' => '50', 'selling_price' => '60', 'stock_quantity' => '10']],
         ], $attributes), $shop->owner)->load('variants.barcodes'));
+    }
+
+    /**
+     * A sale request as the app sends it. $lines is [[variantId, quantity], ...];
+     * each line may add a third element with extra fields (unit_price, discount_amount).
+     * Totals default to "paid in full in cash" unless overridden.
+     */
+    protected function salePayload(array $lines, string $grandTotal, array $overrides = []): array
+    {
+        return array_merge([
+            'client_uuid' => (string) Str::uuid(),
+            'items' => array_map(fn (array $line) => ['variant_id' => $line[0], 'quantity' => (string) $line[1]] + ($line[2] ?? []), $lines),
+            'grand_total' => $grandTotal,
+            'payments' => [['method' => 'cash', 'amount' => $grandTotal]],
+            'due_amount' => '0',
+        ], $overrides);
     }
 
     /** Authorization header for a real Sanctum token, as the mobile app sends it. */

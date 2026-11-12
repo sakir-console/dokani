@@ -5,13 +5,16 @@ namespace Tests\Feature\Api;
 use App\Enums\ShopRole;
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\Customer;
 use App\Models\Plan;
 use App\Models\ProductVariant;
+use App\Models\Sale;
 use App\Models\Shop;
 use App\Models\ShopUser;
 use App\Models\Unit;
 use App\Models\Vendor;
 use App\Services\Tenancy\MissingTenantException;
+use Illuminate\Support\Str;
 use LogicException;
 use Tests\TestCase;
 
@@ -272,6 +275,74 @@ class TenantIsolationTest extends TestCase
         $this->asOwnerOf($this->shopA)->postJson('/api/v1/products', [
             'name' => 'First', 'unit_id' => $this->unitId(), 'variants' => [['purchase_price' => 1, 'selling_price' => 2]],
         ])->assertCreated();
+    }
+
+    // --- Sales, customers, dues, invoices ------------------------------------------
+
+    public function test_customers_are_per_shop_even_with_the_same_phone_number(): void
+    {
+        $theirs = $this->tenant()->runFor($this->shopB, fn () => Customer::factory()->create(['name' => 'B Customer', 'phone' => '01712345678']));
+        $as = fn () => $this->asOwnerOf($this->shopA);
+
+        $as()->getJson('/api/v1/customers')->assertOk()->assertJsonCount(0, 'data');
+        $as()->getJson('/api/v1/customers?q=B+Customer')->assertJsonCount(0, 'data');
+        $as()->getJson('/api/v1/customers/lookup?phone=01712345678')->assertNotFound()->assertJsonPath('code', 'CUSTOMER_NOT_FOUND');
+        $as()->getJson("/api/v1/customers/{$theirs->id}")->assertNotFound();
+        $as()->getJson("/api/v1/customers/{$theirs->id}/ledger")->assertNotFound();
+        $as()->getJson("/api/v1/customers/{$theirs->id}/sales")->assertNotFound();
+        $as()->getJson("/api/v1/customers/{$theirs->id}/payments")->assertNotFound();
+        $as()->patchJson("/api/v1/customers/{$theirs->id}", ['name' => 'Hacked'])->assertNotFound();
+        $as()->deleteJson("/api/v1/customers/{$theirs->id}")->assertNotFound();
+        $as()->postJson("/api/v1/customers/{$theirs->id}/collect-due", ['client_uuid' => (string) Str::uuid(), 'amount' => '1', 'method' => 'cash'])->assertNotFound();
+
+        // The same number in shop A is a separate person with a separate balance.
+        $mine = $as()->postJson('/api/v1/customers', ['name' => 'A Customer', 'phone' => '01712345678', 'opening_due' => '50'])->assertCreated()->json('data.id');
+        $this->assertNotSame($theirs->id, $mine);
+        $this->assertSame('0.00', $this->tenant()->withoutTenancy(fn () => Customer::query()->whereKey($theirs->id)->value('current_due')));
+    }
+
+    public function test_a_sale_cannot_use_another_shops_products_or_customers(): void
+    {
+        $mine = $this->createProduct($this->shopA)->variants[0];
+        $foreignVariant = $this->createProduct($this->shopB)->variants[0];
+        $foreignCustomer = $this->tenant()->runFor($this->shopB, fn () => Customer::factory()->create());
+
+        $this->asOwnerOf($this->shopA)->postJson('/api/v1/sales', $this->salePayload([[$foreignVariant->id, 1]], '60'))
+            ->assertUnprocessable()->assertJsonPath('code', 'PRODUCT_UNAVAILABLE');
+
+        $this->asOwnerOf($this->shopA)->postJson('/api/v1/sales', $this->salePayload([[$mine->id, 1]], '60', [
+            'payments' => [], 'due_amount' => '60', 'customer_id' => $foreignCustomer->id,
+        ]))->assertUnprocessable()->assertJsonValidationErrors('customer_id');
+
+        $this->tenant()->withoutTenancy(function () use ($foreignVariant, $foreignCustomer) {
+            $this->assertSame('10.000', ProductVariant::query()->whereKey($foreignVariant->id)->value('stock_quantity'));
+            $this->assertSame('0.00', Customer::query()->whereKey($foreignCustomer->id)->value('current_due'));
+            $this->assertSame(0, Sale::query()->count());
+        });
+    }
+
+    public function test_sales_and_the_dashboard_show_only_the_current_shops_figures(): void
+    {
+        $variantB = $this->createProduct($this->shopB)->variants[0];
+        $saleB = $this->asOwnerOf($this->shopB)->postJson('/api/v1/sales', $this->salePayload([[$variantB->id, 2]], '120', [
+            'payments' => [], 'due_amount' => '120', 'customer' => ['name' => 'B Buyer', 'phone' => '01912345678'],
+        ]))->assertCreated()->json('data');
+        $as = fn () => $this->asOwnerOf($this->shopA);
+
+        $as()->getJson('/api/v1/sales')->assertOk()->assertJsonCount(0, 'data');
+        $as()->getJson('/api/v1/sales?q=INV-000001')->assertJsonCount(0, 'data');
+        $as()->getJson("/api/v1/sales/{$saleB['id']}")->assertNotFound();
+        $as()->get("/api/v1/sales/{$saleB['id']}/invoice.pdf", ['Accept' => 'application/json'])->assertNotFound();
+        $as()->postJson("/api/v1/sales/{$saleB['id']}/void", ['reason' => 'sabotage'])->assertNotFound();
+
+        $as()->getJson('/api/v1/dashboard')->assertOk()
+            ->assertJsonPath('data.today.sales', '0.00')
+            ->assertJsonPath('data.today.orders', 0)
+            ->assertJsonPath('data.total_customer_due', '0.00')
+            ->assertJsonCount(0, 'data.recent_sales');
+
+        $this->asOwnerOf($this->shopB)->getJson("/api/v1/sales/{$saleB['id']}")->assertOk()->assertJsonPath('data.status', 'completed');
+        $this->asOwnerOf($this->shopB)->getJson('/api/v1/dashboard')->assertJsonPath('data.today.sales', '120.00')->assertJsonPath('data.total_customer_due', '120.00');
     }
 
     // --- The model layer itself ---------------------------------------------

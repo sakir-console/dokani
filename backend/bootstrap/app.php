@@ -31,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function () {
             Route::middleware('api')->prefix('api/v1')->group(base_path('routes/api.php'));
             Route::middleware('web')->prefix('admin')->name('admin.')->group(base_path('routes/admin.php'));
+            Route::middleware('throttle:public-invoice')->group(base_path('routes/public.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {

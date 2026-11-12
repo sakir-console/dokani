@@ -60,6 +60,9 @@ class AppServiceProvider extends ServiceProvider
             ];
         });
 
+        // Public invoice links: generous for a customer, useless for guessing 256-bit tokens.
+        RateLimiter::for('public-invoice', fn (Request $request) => Limit::perMinute(30)->by('invoice:'.$request->ip()));
+
         RateLimiter::for('admin-login', fn (Request $request) => Limit::perMinute(5)->by('admin:'.$request->ip()));
     }
 }

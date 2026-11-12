@@ -7,10 +7,10 @@ use App\Exceptions\ApiException;
 use App\Models\Barcode;
 use App\Models\Product;
 use App\Models\ProductVariant;
-use App\Models\Shop;
 use App\Models\User;
 use App\Services\Inventory\StockService;
 use App\Services\Subscription\Entitlements;
+use App\Services\Tenancy\ShopLock;
 use App\Services\Tenancy\TenantContext;
 use App\Support\Dec;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -316,7 +316,7 @@ class ProductService
         }
 
         // Serialise product creation per shop, so two requests cannot both take the last slot.
-        Shop::query()->whereKey($shop->id)->lockForUpdate()->first();
+        app(ShopLock::class)->acquire();
 
         if (Product::query()->count() >= $limit) {
             throw ApiException::forbidden('PLAN_LIMIT_REACHED', __('Your plan allows :limit products. Upgrade to add more.', ['limit' => $limit]));
