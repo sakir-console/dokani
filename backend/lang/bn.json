@@ -20,5 +20,22 @@
     "Not found.": "পাওয়া যায়নি।",
     "Request failed.": "অনুরোধটি সম্পন্ন হয়নি।",
     "A category cannot be moved under one of its own sub-categories.": "একটি ক্যাটাগরিকে তার নিজের সাব-ক্যাটাগরির নিচে নেওয়া যাবে না।",
-    "Remove or move the sub-categories first.": "আগে সাব-ক্যাটাগরিগুলো সরান।"
+    "Remove or move the sub-categories first.": "আগে সাব-ক্যাটাগরিগুলো সরান।",
+    "The product was not found.": "পণ্যটি পাওয়া যায়নি।",
+    "This product is counted in whole units.": "এই পণ্যটি পূর্ণ সংখ্যায় গণনা করা হয়।",
+    "Not enough stock. Available: :available": "পর্যাপ্ত স্টক নেই। আছে: :available",
+    "Send the variants when switching variants on or off.": "ভ্যারিয়েন্ট চালু বা বন্ধ করার সময় ভ্যারিয়েন্টগুলো পাঠান।",
+    "The selected variant is invalid.": "নির্বাচিত ভ্যারিয়েন্টটি সঠিক নয়।",
+    "\":name\" still has stock. Adjust its stock to zero before removing it.": "\":name\"-এর স্টক এখনো আছে। মুছার আগে স্টক শূন্য করুন।",
+    "A product needs at least one variant.": "পণ্যের অন্তত একটি ভ্যারিয়েন্ট থাকতে হবে।",
+    "A product without variants can only have one price and stock.": "ভ্যারিয়েন্ট ছাড়া পণ্যের একটিই দাম ও স্টক থাকতে পারে।",
+    "Each variant needs a name.": "প্রতিটি ভ্যারিয়েন্টের নাম দিতে হবে।",
+    "Variant names must be different.": "ভ্যারিয়েন্টের নামগুলো আলাদা হতে হবে।",
+    "The same barcode is used more than once.": "একই বারকোড একাধিকবার ব্যবহার করা হয়েছে।",
+    "This barcode is already used by another product.": "এই বারকোডটি অন্য একটি পণ্যে ব্যবহার করা হয়েছে।",
+    "Barcode :code is already used by another product.": "বারকোড :code অন্য একটি পণ্যে ব্যবহার করা হয়েছে।",
+    "Your plan allows :limit products. Upgrade to add more.": "আপনার প্যাকেজে :limitটি পণ্য রাখা যায়। আরও যোগ করতে প্যাকেজ আপগ্রেড করুন।",
+    "This unit is used by products and cannot be deleted.": "এই এককটি পণ্যে ব্যবহার হচ্ছে, তাই মুছা যাবে না।",
+    "Built-in units cannot be changed.": "নির্ধারিত এককগুলো পরিবর্তন করা যাবে না।",
+    "No product has this barcode.": "এই বারকোডের কোনো পণ্য নেই।"
 }

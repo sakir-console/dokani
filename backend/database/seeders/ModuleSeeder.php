@@ -13,11 +13,11 @@ class ModuleSeeder extends Seeder
      * plans now but are not granted to shops until they are built.
      */
     public const MODULES = [
-        'products' => ['Products', 'Products, categories, variants and barcodes', true, true],
+        'products' => ['Products', 'Products, categories, variants, barcodes and stock', true, true],
         'pos' => ['Point of sale', 'Sales, payments and invoices', true, true],
         'customers' => ['Customers & due', 'Customer accounts, due ledger and due collection', true, true],
         'offline' => ['Offline mode', 'Sell without internet and sync later', true, true],
-        'inventory' => ['Inventory', 'Stock in/out, adjustments and movement history', false, true],
+        'inventory' => ['Inventory history', 'Full stock movement history', false, true],
         'vendors' => ['Vendors', 'Vendor list and vendor products', false, true],
         'reports' => ['Reports', 'Sales, profit and stock reports', false, true],
         'exports' => ['Exports', 'Excel, CSV and PDF export', false, true],

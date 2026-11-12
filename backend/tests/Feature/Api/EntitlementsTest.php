@@ -2,13 +2,9 @@
 
 namespace Tests\Feature\Api;
 
-use App\Enums\BillingCycle;
-use App\Enums\SubscriptionStatus;
 use App\Models\Module;
-use App\Models\Plan;
 use App\Models\Shop;
 use App\Models\ShopModuleOverride;
-use App\Models\Subscription;
 use App\Services\Subscription\Entitlements;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
@@ -22,21 +18,6 @@ class EntitlementsTest extends TestCase
         // A route behind a non-core module, to exercise the middleware end to end.
         Route::middleware(['api', 'auth:sanctum', 'tenant', 'shop.active', 'module:reports'])
             ->get('/api/v1/_test/reports', fn () => response()->json(['data' => 'ok']));
-    }
-
-    private function subscribe(Shop $shop, string $planCode, ?\DateTimeInterface $endsAt): Subscription
-    {
-        $shop->subscriptions()->update(['status' => SubscriptionStatus::Cancelled]);
-
-        return Subscription::create([
-            'shop_id' => $shop->id,
-            'plan_id' => Plan::query()->where('code', $planCode)->firstOrFail()->id,
-            'billing_cycle' => BillingCycle::Monthly,
-            'status' => SubscriptionStatus::Active,
-            'price' => 299,
-            'starts_at' => now()->subDay(),
-            'ends_at' => $endsAt,
-        ]);
     }
 
     private function entitlements(): Entitlements

@@ -7,9 +7,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\CategoryRequest;
 use App\Http\Resources\CategoryResource;
 use App\Models\Category;
+use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Category has the BelongsToShop trait, so every query here — including the
@@ -58,7 +60,11 @@ class CategoryController extends Controller
             throw ApiException::conflict('CATEGORY_HAS_CHILDREN', __('Remove or move the sub-categories first.'));
         }
 
-        $category->delete();
+        DB::transaction(function () use ($category) {
+            // Products stay; they simply have no category afterwards.
+            Product::query()->where('category_id', $category->id)->update(['category_id' => null]);
+            $category->delete();
+        });
 
         return response()->json(null, 204);
     }

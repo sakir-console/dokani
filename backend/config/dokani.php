@@ -35,6 +35,8 @@ return [
     'uploads' => [
         'logo_max_kb' => 2048,
         'logo_max_px' => 512,
+        'product_image_max_kb' => 4096,
+        'product_image_max_px' => 800,
     ],
 
     'app' => [

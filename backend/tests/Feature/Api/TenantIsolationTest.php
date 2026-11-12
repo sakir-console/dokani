@@ -3,9 +3,14 @@
 namespace Tests\Feature\Api;
 
 use App\Enums\ShopRole;
+use App\Models\Brand;
 use App\Models\Category;
+use App\Models\Plan;
+use App\Models\ProductVariant;
 use App\Models\Shop;
 use App\Models\ShopUser;
+use App\Models\Unit;
+use App\Models\Vendor;
 use App\Services\Tenancy\MissingTenantException;
 use LogicException;
 use Tests\TestCase;
@@ -134,6 +139,139 @@ class TenantIsolationTest extends TestCase
     public function test_two_shops_can_use_the_same_category_name(): void
     {
         $this->asOwnerOf($this->shopA)->postJson('/api/v1/categories', ['name' => 'Medicine'])->assertCreated();
+    }
+
+    // --- Catalogue: products, variants, barcodes, brands, units, vendors ------
+
+    public function test_products_of_another_shop_are_invisible_and_untouchable(): void
+    {
+        $mine = $this->createProduct($this->shopA, ['name' => 'Mine']);
+        $theirs = $this->createProduct($this->shopB, ['name' => 'Theirs'], [['purchase_price' => 1, 'selling_price' => 2, 'stock_quantity' => 5, 'barcodes' => ['B-CODE'], 'sku' => 'B-SKU']]);
+
+        $this->assertSame(['Mine'], $this->asOwnerOf($this->shopA)->getJson('/api/v1/products')->json('data.*.name'));
+        $this->assertSame([], $this->asOwnerOf($this->shopA)->getJson('/api/v1/products?q=Theirs')->json('data'));
+        $this->assertSame([], $this->asOwnerOf($this->shopA)->getJson('/api/v1/products?q=B-CODE')->json('data'));
+        $this->assertSame([], $this->asOwnerOf($this->shopA)->getJson('/api/v1/products?q=B-SKU')->json('data'));
+
+        $this->asOwnerOf($this->shopA)->getJson("/api/v1/products/{$theirs->id}")->assertNotFound();
+        $this->asOwnerOf($this->shopA)->patchJson("/api/v1/products/{$theirs->id}", ['name' => 'Hacked'])->assertNotFound();
+        $this->asOwnerOf($this->shopA)->deleteJson("/api/v1/products/{$theirs->id}")->assertNotFound();
+        $this->asOwnerOf($this->shopA)->postJson("/api/v1/products/{$theirs->id}/image")->assertNotFound();
+        $this->asOwnerOf($this->shopA)->deleteJson("/api/v1/products/{$theirs->id}/image")->assertNotFound();
+
+        $this->asOwnerOf($this->shopB)->getJson("/api/v1/products/{$theirs->id}")->assertOk()->assertJsonPath('data.name', 'Theirs');
+        $this->asOwnerOf($this->shopA)->getJson('/api/v1/stock/summary')->assertJsonPath('data.total_products', 1);
+        $this->assertNotNull($mine);
+    }
+
+    public function test_a_barcode_resolves_only_inside_its_own_shop_and_can_be_reused_by_another(): void
+    {
+        $theirs = $this->createProduct($this->shopB, [], [['purchase_price' => 1, 'selling_price' => 2, 'barcodes' => ['8901234567890']]]);
+
+        $this->asOwnerOf($this->shopA)->getJson('/api/v1/barcodes/lookup?code=8901234567890')
+            ->assertNotFound()->assertJsonPath('code', 'BARCODE_NOT_FOUND');
+
+        // The same printed barcode is a different product in each shop.
+        $mine = $this->createProduct($this->shopA, [], [['purchase_price' => 1, 'selling_price' => 2, 'barcodes' => ['8901234567890']]]);
+
+        $this->asOwnerOf($this->shopA)->getJson('/api/v1/barcodes/lookup?code=8901234567890')->assertJsonPath('data.product.id', $mine->id);
+        $this->asOwnerOf($this->shopB)->getJson('/api/v1/barcodes/lookup?code=8901234567890')->assertJsonPath('data.product.id', $theirs->id);
+    }
+
+    public function test_a_product_cannot_reference_another_shops_category_brand_unit_or_vendor(): void
+    {
+        $this->subscribe($this->shopA, 'basic');
+        [$brandB, $vendorB, $unitB] = $this->tenant()->runFor($this->shopB, fn () => [
+            Brand::factory()->create(),
+            Vendor::factory()->create(),
+            Unit::create(['name' => 'Sack', 'short_name' => 'sk']),
+        ]);
+
+        $base = ['name' => 'X', 'unit_id' => $this->unitId(), 'variants' => [['purchase_price' => 1, 'selling_price' => 2]]];
+        $post = fn (array $extra) => $this->asOwnerOf($this->shopA)->postJson('/api/v1/products', array_merge($base, $extra));
+
+        $post(['category_id' => $this->categoryB->id])->assertUnprocessable()->assertJsonValidationErrors('category_id');
+        $post(['brand_id' => $brandB->id])->assertUnprocessable()->assertJsonValidationErrors('brand_id');
+        $post(['vendor_id' => $vendorB->id])->assertUnprocessable()->assertJsonValidationErrors('vendor_id');
+        $post(['unit_id' => $unitB->id])->assertUnprocessable()->assertJsonValidationErrors('unit_id');
+
+        $post(['category_id' => $this->categoryA->id])->assertCreated();
+    }
+
+    public function test_another_shops_variant_cannot_be_edited_through_my_product(): void
+    {
+        $mine = $this->createProduct($this->shopA);
+        $theirs = $this->createProduct($this->shopB);
+        $foreignVariant = $theirs->variants[0];
+
+        $this->asOwnerOf($this->shopA)->patchJson("/api/v1/products/{$mine->id}", [
+            'variants' => [['id' => $foreignVariant->id, 'purchase_price' => 0, 'selling_price' => 0]],
+        ])->assertUnprocessable()->assertJsonValidationErrors('variants.0.id');
+
+        $fresh = $this->tenant()->withoutTenancy(fn () => ProductVariant::query()->findOrFail($foreignVariant->id));
+        $this->assertSame('60.00', $fresh->selling_price);
+        $this->assertSame($theirs->id, $fresh->product_id);
+    }
+
+    public function test_stock_of_another_shops_variant_cannot_be_changed_or_read(): void
+    {
+        $this->subscribe($this->shopA, 'basic');
+        $foreign = $this->createProduct($this->shopB)->variants[0];
+        $as = fn () => $this->asOwnerOf($this->shopA);
+
+        $as()->postJson('/api/v1/stock/in', ['variant_id' => $foreign->id, 'quantity' => 100])->assertUnprocessable()->assertJsonValidationErrors('variant_id');
+        $as()->postJson('/api/v1/stock/out', ['variant_id' => $foreign->id, 'quantity' => 1, 'note' => 'x'])->assertUnprocessable();
+        $as()->postJson('/api/v1/stock/adjust', ['variant_id' => $foreign->id, 'new_quantity' => 0])->assertUnprocessable();
+        $as()->getJson('/api/v1/stock/movements?variant_id='.$foreign->id)->assertOk()->assertJsonCount(0, 'data');
+        $as()->getJson('/api/v1/stock/movements')->assertOk()->assertJsonCount(0, 'data');
+
+        $stock = $this->tenant()->withoutTenancy(fn () => ProductVariant::query()->whereKey($foreign->id)->value('stock_quantity'));
+        $this->assertSame('10.000', $stock);
+    }
+
+    public function test_brands_units_and_vendors_are_per_shop(): void
+    {
+        $this->subscribe($this->shopA, 'basic');
+        $this->subscribe($this->shopB, 'basic');
+        [$brandB, $vendorB, $unitB] = $this->tenant()->runFor($this->shopB, fn () => [
+            Brand::factory()->create(['name' => 'B-Brand']),
+            Vendor::factory()->create(['name' => 'B-Vendor']),
+            Unit::create(['name' => 'Sack', 'short_name' => 'sk']),
+        ]);
+        $as = fn () => $this->asOwnerOf($this->shopA);
+
+        $as()->getJson('/api/v1/brands')->assertOk()->assertJsonCount(0, 'data');
+        $as()->patchJson("/api/v1/brands/{$brandB->id}", ['name' => 'x'])->assertNotFound();
+        $as()->deleteJson("/api/v1/brands/{$brandB->id}")->assertNotFound();
+
+        $as()->getJson('/api/v1/vendors')->assertOk()->assertJsonCount(0, 'data');
+        $as()->getJson('/api/v1/vendors?q=B-Vendor')->assertJsonCount(0, 'data');
+        $as()->getJson("/api/v1/vendors/{$vendorB->id}")->assertNotFound();
+        $as()->getJson("/api/v1/vendors/{$vendorB->id}/products")->assertNotFound();
+        $as()->getJson("/api/v1/vendors/{$vendorB->id}/purchases")->assertNotFound();
+        $as()->patchJson("/api/v1/vendors/{$vendorB->id}", ['name' => 'x'])->assertNotFound();
+        $as()->deleteJson("/api/v1/vendors/{$vendorB->id}")->assertNotFound();
+
+        // Built-in units are shared; another shop's custom unit is not.
+        $names = $as()->getJson('/api/v1/units')->json('data.*.name');
+        $this->assertContains('Piece', $names);
+        $this->assertNotContains('Sack', $names);
+        $as()->patchJson("/api/v1/units/{$unitB->id}", ['name' => 'x'])->assertNotFound();
+        $as()->deleteJson("/api/v1/units/{$unitB->id}")->assertNotFound();
+
+        // Both shops may use the same names.
+        $as()->postJson('/api/v1/brands', ['name' => 'B-Brand'])->assertCreated();
+        $as()->postJson('/api/v1/units', ['name' => 'Sack', 'short_name' => 'sk'])->assertCreated();
+    }
+
+    public function test_each_shops_product_limit_counts_only_its_own_products(): void
+    {
+        Plan::query()->where('code', 'free')->update(['max_products' => 1]);
+        $this->createProduct($this->shopB);
+
+        $this->asOwnerOf($this->shopA)->postJson('/api/v1/products', [
+            'name' => 'First', 'unit_id' => $this->unitId(), 'variants' => [['purchase_price' => 1, 'selling_price' => 2]],
+        ])->assertCreated();
     }
 
     // --- The model layer itself ---------------------------------------------
