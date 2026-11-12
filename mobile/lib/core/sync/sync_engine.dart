@@ -72,7 +72,7 @@ class SyncEngine extends Notifier<SyncStatus> {
   SyncStatus build() {
     ref.onDispose(() => _retry?.cancel());
     // Signing in (or switching shop) starts a sync for that shop.
-    ref.listen(localDatabaseProvider, (previous, next) {
+    ref.listen(localDatabaseProvider, fireImmediately: true, (previous, next) {
       if (next != null) unawaited(Future.microtask(sync));
     });
     return const SyncStatus();
@@ -171,6 +171,12 @@ class SyncEngine extends Notifier<SyncStatus> {
 }
 
 final syncEngineProvider = NotifierProvider<SyncEngine, SyncStatus>(SyncEngine.new);
+
+/// One queued record, live: the pending invoice screen follows it until the server confirms.
+final outboxEntryProvider = StreamProvider.autoDispose.family<OutboxEntry?, String>((ref, clientUuid) {
+  final database = ref.watch(localDatabaseProvider);
+  return database == null ? Stream.value(null) : database.watchEntry(clientUuid);
+});
 
 /// Records made on this phone that the server has not confirmed yet, newest first.
 final unsyncedProvider = StreamProvider<List<OutboxEntry>>((ref) {

@@ -11,6 +11,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/message_banner.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../pos/application/sale_submitter.dart';
 import '../../pos/data/sale_models.dart';
 import '../../pos/presentation/labels.dart';
 import '../data/customer_repository.dart';
@@ -150,9 +151,12 @@ class _CustomerFormState extends ConsumerState<_CustomerForm> {
   }
 }
 
+/// The customer after a payment, and whether the payment is still waiting to reach the server.
+typedef CollectedDue = ({Customer customer, bool pending});
+
 /// Record a payment against a customer's due. Completes with the customer's new state.
-Future<Customer?> showCollectDueSheet(BuildContext context, {required Customer customer}) =>
-    showModalBottomSheet<Customer>(
+Future<CollectedDue?> showCollectDueSheet(BuildContext context, {required Customer customer}) =>
+    showModalBottomSheet<CollectedDue>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -203,8 +207,8 @@ class _CollectDueSheetState extends ConsumerState<_CollectDueSheet> {
 
     setState(() => _busy = true);
     try {
-      final updated = await ref.read(customerRepositoryProvider).collectDue(
-            customerId: widget.customer.id,
+      final updated = await ref.read(saleSubmitterProvider).collectDue(
+            customer: widget.customer,
             clientUuid: _clientUuid,
             amount: Formatters.parseDecimal(_amount.text, maxDecimals: 2)!,
             method: _method,

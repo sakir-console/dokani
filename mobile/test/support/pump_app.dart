@@ -1,5 +1,8 @@
 import 'package:dokani/app/app.dart';
+import 'package:dokani/core/database/local_database.dart';
 import 'package:dokani/core/storage/preferences.dart';
+import 'package:dokani/core/sync/sync_api.dart';
+import 'package:dokani/core/sync/sync_engine.dart';
 import 'package:dokani/features/auth/data/auth_repository.dart';
 import 'package:dokani/core/utils/external.dart';
 import 'package:dokani/features/catalog/data/catalog_repository.dart';
@@ -18,6 +21,7 @@ import 'catalog_fakes.dart';
 import 'fakes.dart';
 import 'report_fakes.dart';
 import 'sales_fakes.dart';
+import 'sync_fakes.dart';
 
 /// What the app tried to hand to the phone: text for the share sheet, links for the browser.
 class Outbox {
@@ -30,6 +34,8 @@ class Outbox {
 /// in place of the network. [locale] is the saved language; null means the
 /// app default, which is Bangla. [scanResult] is what the "camera" returns for
 /// a single scan; [scanCodes] are the codes seen by a continuous scan.
+/// Without a [database] the app has no local copy and talks to the (fake)
+/// server for everything, as it did before offline mode.
 Future<void> pumpApp(
   WidgetTester tester, {
   required FakeAuthRepository repository,
@@ -43,6 +49,8 @@ Future<void> pumpApp(
   String? scanResult,
   List<String> scanCodes = const [],
   Outbox? outbox,
+  LocalDatabase? database,
+  FakeSyncApi? syncApi,
 }) async {
   final catalogRepository = catalog ?? FakeCatalogRepository();
   final customerRepository = customers ?? sales?.customers ?? FakeCustomerRepository();
@@ -60,6 +68,8 @@ Future<void> pumpApp(
       retry: (_, _) => null,
       overrides: [
         sharedPreferencesProvider.overrideWithValue(preferences),
+        localDatabaseProvider.overrideWithValue(database),
+        syncApiProvider.overrideWithValue(syncApi ?? FakeSyncApi()),
         authRepositoryProvider.overrideWithValue(repository),
         catalogRepositoryProvider.overrideWithValue(catalogRepository),
         vendorRepositoryProvider.overrideWithValue(vendors ?? FakeVendorRepository()),

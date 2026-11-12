@@ -91,7 +91,7 @@ class InvoiceScreen extends ConsumerWidget {
               MessageBanner(title: l10n.cancelled, message: sale.voidReason ?? ''),
               const SizedBox(height: 12),
             ],
-            _Receipt(sale: sale, shopName: session?.shop.name ?? '', locale: locale),
+            SaleReceipt(sale: sale, shopName: session?.shop.name ?? '', locale: locale),
             const SizedBox(height: 16),
             if (sale.invoiceUrl != null) ...[
               Row(
@@ -144,12 +144,15 @@ class InvoiceScreen extends ConsumerWidget {
   }
 }
 
-class _Receipt extends StatelessWidget {
-  const _Receipt({required this.sale, required this.shopName, required this.locale});
+/// The receipt card. [numberLabel] replaces the invoice number line for a sale that
+/// has no server invoice number yet.
+class SaleReceipt extends StatelessWidget {
+  const SaleReceipt({super.key, required this.sale, required this.shopName, required this.locale, this.numberLabel});
 
   final Sale sale;
   final String shopName;
   final String locale;
+  final String? numberLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -171,7 +174,7 @@ class _Receipt extends StatelessWidget {
           children: [
             Text(shopName, style: text.titleLarge, textAlign: TextAlign.center),
             const SizedBox(height: 4),
-            Text(l10n.invoiceNo(sale.invoiceNo), style: text.titleMedium, textAlign: TextAlign.center),
+            Text(numberLabel ?? l10n.invoiceNo(sale.invoiceNo), style: text.titleMedium, textAlign: TextAlign.center),
             Text(
               DateFormat.yMMMd(locale).add_jm().format(sale.soldAt.toLocal()),
               style: muted,

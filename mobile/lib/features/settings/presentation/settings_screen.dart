@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_theme.dart';
+import '../../../core/sync/sync_engine.dart';
 import '../../../core/widgets/language_toggle.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/application/auth_controller.dart';
@@ -13,11 +14,13 @@ class SettingsScreen extends ConsumerWidget {
 
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
     final l10n = AppLocalizations.of(context);
+    final unsynced = ref.read(unsyncedProvider).value?.length ?? 0;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        content: Text(l10n.logoutConfirm),
+        // Signing out with unsent sales is allowed, but never without saying what happens to them.
+        content: Text(unsynced > 0 ? '${l10n.logoutUnsynced(unsynced)}\n\n${l10n.logoutConfirm}' : l10n.logoutConfirm),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l10n.cancel)),
           FilledButton(
@@ -39,6 +42,7 @@ class SettingsScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final text = Theme.of(context).textTheme;
     final session = ref.watch(sessionProvider);
+    final unsynced = ref.watch(unsyncedProvider).value?.length ?? 0;
 
     if (session == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -77,6 +81,14 @@ class SettingsScreen extends ConsumerWidget {
                   subtitle: Text(session.shop.name),
                   trailing: canEditShop ? const Icon(Icons.chevron_right) : null,
                   onTap: canEditShop ? () => context.push('/settings/shop') : null,
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.sync),
+                  title: Text(l10n.syncTitle),
+                  subtitle: Text(unsynced > 0 ? l10n.unsyncedCount(unsynced) : l10n.allSyncedTitle),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/sync'),
                 ),
                 const Divider(),
                 ListTile(

@@ -580,5 +580,68 @@
   "formatPdf": "PDF",
   "exportNotInPlan": "Export is not included in your plan.",
   "reportsNotInPlan": "Reports are not included in your plan.",
-  "preparingFile": "Preparing the file…"
+  "preparingFile": "Preparing the file…",
+  "pendingSync": "Waiting to be sent",
+  "savedOnPhoneTitle": "Saved on this phone",
+  "savedOnPhoneBody": "The server could not be reached. This sale will be sent by itself when the internet is back.",
+  "savedOnPhoneWillSend": "Saved on this phone. It will be sent when the internet is back.",
+  "confirmedByServer": "Confirmed by the server",
+  "openInvoice": "Open invoice",
+  "syncFailedTitle": "The server did not accept this",
+  "temporaryNo": "Temporary no. {number}",
+  "@temporaryNo": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "qrAfterSync": "The QR code and the customer's link are available once the sale reaches the server.",
+  "pendingSaleGone": "This sale is no longer on this phone",
+  "syncTitle": "Sync",
+  "syncNow": "Send now",
+  "syncing": "Sending…",
+  "syncOffline": "No internet. The app will try again by itself.",
+  "lastSynced": "Last synced: {time}",
+  "@lastSynced": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "neverSynced": "Not synced yet",
+  "unsyncedCount": "{count, plural, =1{1 record waiting to be sent} other{{count} records waiting to be sent}}",
+  "@unsyncedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "unsyncedBody": "They are safe on this phone and will be sent when the internet is back.",
+  "syncFailedCount": "{count, plural, =1{1 record was not accepted by the server.} other{{count} records were not accepted by the server.}}",
+  "@syncFailedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "viewDetails": "View",
+  "allSyncedTitle": "Everything is saved on the server",
+  "allSyncedBody": "Sales made without internet appear here until they are sent.",
+  "outboxSale": "Sale",
+  "outboxDueCollection": "Due collection",
+  "removeFromPhone": "Remove from this phone",
+  "removeFromPhoneConfirm": "The server did not accept this record. If you remove it, it will not be recorded anywhere. Remove it?",
+  "logoutUnsynced": "{count, plural, =1{1 record has not been sent yet. It stays on this phone and is sent when this shop logs in here again.} other{{count} records have not been sent yet. They stay on this phone and are sent when this shop logs in here again.}}",
+  "@logoutUnsynced": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "showingSavedCopy": "No internet. Showing the copy saved on this phone."
 }

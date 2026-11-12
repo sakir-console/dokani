@@ -185,7 +185,8 @@ class LocalDatabase extends _$LocalDatabase {
   /// so the counter does not offer what was just sold. The next sync replaces
   /// it with the server's figure. [deltaMilli] is in thousandths of a unit.
   Future<void> adjustLocalStock(int variantId, int deltaMilli) => transaction(() async {
-        final rows = await select(cachedProducts).get();
+        // Narrow to rows that mention the id, then check properly below.
+        final rows = await (select(cachedProducts)..where((p) => p.json.like('%"id":$variantId%'))).get();
         for (final row in rows) {
           final product = (jsonDecode(row.json) as Map).cast<String, dynamic>();
           final variants = (product['variants'] as List? ?? const []).map((v) => (v as Map).cast<String, dynamic>()).toList();
@@ -197,6 +198,14 @@ class LocalDatabase extends _$LocalDatabase {
 
           variants[index]['stock_quantity'] = text(milli(variants[index]['stock_quantity']) + deltaMilli);
           product['variants'] = variants;
+          final left = milli(variants[index]['stock_quantity']);
+          if (left <= 0) {
+            variants[index]['stock_status'] = 'out';
+          } else if (variants[index]['stock_status'] == 'out') {
+            variants[index]['stock_status'] = 'in_stock';
+          }
+          product['out_of_stock_variants'] = variants.where((v) => v['stock_status'] == 'out').length;
+          product['low_stock_variants'] = variants.where((v) => v['stock_status'] == 'low').length;
           product['total_stock'] = text(variants.fold(0, (sum, v) => sum + milli(v['stock_quantity'])));
 
           await (update(cachedProducts)..where((p) => p.id.equals(row.id))).write(CachedProductsCompanion(json: Value(jsonEncode(product))));
@@ -276,6 +285,10 @@ class LocalDatabase extends _$LocalDatabase {
 
   Future<OutboxEntry?> entry(String clientUuid) =>
       (select(outboxEntries)..where((o) => o.clientUuid.equals(clientUuid))).getSingleOrNull();
+
+  /// One record, followed as it moves from waiting to confirmed (or failed).
+  Stream<OutboxEntry?> watchEntry(String clientUuid) =>
+      (select(outboxEntries)..where((o) => o.clientUuid.equals(clientUuid))).watchSingleOrNull();
 
   /// Everything not yet confirmed, newest first, for the "waiting to sync" screen.
   Stream<List<OutboxEntry>> watchUnsynced() => (select(outboxEntries)

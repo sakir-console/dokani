@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../app/theme/app_theme.dart';
+import '../../../core/sync/sync_engine.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/message_banner.dart';
 import '../../../l10n/app_localizations.dart';
@@ -68,6 +69,7 @@ class HomeScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
             ],
+            const _UnsyncedCard(),
             _ShopCard(session: session),
             // A shop that is not active cannot use the catalogue; the server would refuse every call.
             if (session.shop.status == ShopStatus.active) ...[
@@ -81,6 +83,35 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             _PlanCard(session: session),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown only while something made on this phone has not reached the server.
+class _UnsyncedCard extends ConsumerWidget {
+  const _UnsyncedCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final entries = ref.watch(unsyncedProvider).value ?? const [];
+    if (entries.isEmpty) return const SizedBox.shrink();
+
+    final failed = entries.where((entry) => entry.status == 'failed').length;
+    final syncing = ref.watch(syncEngineProvider.select((status) => status.syncing));
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: MessageBanner(
+        key: const ValueKey('unsynced-card'),
+        title: l10n.unsyncedCount(entries.length),
+        message: failed > 0 ? l10n.syncFailedCount(failed) : (syncing ? l10n.syncing : l10n.unsyncedBody),
+        tone: failed > 0 ? BannerTone.error : BannerTone.warning,
+        action: Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton(onPressed: () => context.push('/sync'), child: Text(l10n.viewDetails)),
         ),
       ),
     );

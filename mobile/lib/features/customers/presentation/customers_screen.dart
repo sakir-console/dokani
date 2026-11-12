@@ -10,7 +10,8 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/application/auth_controller.dart';
-import '../data/customer_repository.dart';
+import '../../../core/widgets/message_banner.dart';
+import '../application/customer_directory.dart';
 import 'customer_sheets.dart';
 
 class CustomersScreen extends ConsumerStatefulWidget {
@@ -88,7 +89,8 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                 title: describeError(error, l10n),
                 action: OutlinedButton(onPressed: () => ref.invalidate(customersProvider), child: Text(l10n.retry)),
               ),
-              data: (items) {
+              data: (result) {
+                final items = result.items;
                 if (items.isEmpty) {
                   if (_query.isNotEmpty) return EmptyState(icon: Icons.search_off, title: l10n.noResultsTitle);
                   return _dueOnly
@@ -96,12 +98,15 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                       : EmptyState(icon: Icons.people_outline, title: l10n.noCustomersTitle, body: l10n.noCustomersBody);
                 }
 
+                // One extra row at the top when this is the phone's saved copy.
+                final offset = result.fromPhone ? 1 : 0;
                 return ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-                  itemCount: items.length,
+                  itemCount: items.length + offset,
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
-                    final customer = items[index];
+                    if (index < offset) return MessageBanner(message: l10n.showingSavedCopy, tone: BannerTone.warning);
+                    final customer = items[index - offset];
                     return Card(
                       clipBehavior: Clip.antiAlias,
                       child: ListTile(

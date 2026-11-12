@@ -11,7 +11,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../pos/data/sales_repository.dart';
 import '../../pos/presentation/labels.dart';
-import '../data/customer_repository.dart';
+import '../application/customer_directory.dart';
 import 'customer_sheets.dart';
 
 /// A customer's balance, totals and full ledger, with due collection.
@@ -102,10 +102,12 @@ class CustomerDetailScreen extends ConsumerWidget {
                             icon: Icons.payments_outlined,
                             onPressed: () async {
                               final messenger = ScaffoldMessenger.of(context);
-                              final updated = await showCollectDueSheet(context, customer: customer);
-                              if (updated == null) return;
+                              final result = await showCollectDueSheet(context, customer: customer);
+                              if (result == null) return;
                               _reload(ref);
-                              messenger.showSnackBar(SnackBar(content: Text(l10n.dueCollected)));
+                              messenger.showSnackBar(
+                                SnackBar(content: Text(result.pending ? l10n.savedOnPhoneWillSend : l10n.dueCollected)),
+                              );
                             },
                           ),
                         ],

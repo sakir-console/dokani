@@ -179,15 +179,3 @@ class CustomerRepository {
 }
 
 final customerRepositoryProvider = Provider((ref) => CustomerRepository(ref.watch(dioProvider)));
-
-typedef CustomerQuery = ({String query, bool hasDue});
-
-final customersProvider = FutureProvider.autoDispose.family<List<Customer>, CustomerQuery>(
-  (ref, filter) => ref.watch(customerRepositoryProvider).customers(query: filter.query, hasDue: filter.hasDue),
-);
-
-final customerProvider =
-    FutureProvider.autoDispose.family<Customer, int>((ref, id) => ref.watch(customerRepositoryProvider).customer(id));
-
-final customerLedgerProvider = FutureProvider.autoDispose
-    .family<List<LedgerEntry>, int>((ref, id) => ref.watch(customerRepositoryProvider).ledger(id));

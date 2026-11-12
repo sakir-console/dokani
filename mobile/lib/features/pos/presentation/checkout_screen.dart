@@ -15,9 +15,11 @@ import '../../../core/widgets/message_banner.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../catalog/application/catalog_providers.dart';
+import '../../customers/application/customer_directory.dart';
 import '../../customers/data/customer_repository.dart';
 import '../application/cart_controller.dart';
 import '../application/payment_plan.dart';
+import '../application/sale_submitter.dart';
 import '../data/sale_models.dart';
 import '../data/sales_repository.dart';
 import 'labels.dart';
@@ -119,7 +121,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     setState(() => _lookup = _Lookup.searching);
     _lookupDebounce = Timer(const Duration(milliseconds: 400), () async {
       try {
-        final customer = await ref.read(customerRepositoryProvider).lookup(phone);
+        final customer = await ref.read(customerDirectoryProvider).byPhone(phone);
         if (!mounted || Phone.normalize(_phone.text) != phone) return;
         setState(() {
           _customer = customer;
@@ -181,7 +183,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     setState(() => _busy = true);
     try {
-      final sale = await ref.read(salesRepositoryProvider).createSale(draft);
+      final result = await ref.read(saleSubmitterProvider).submit(
+            draft,
+            SaleDisplay(
+              lines: [for (final line in cart.lines) line.title],
+              subtotal: Exact.money(cart.subtotalPaisa),
+              paid: Exact.money(plan.paidPaisa),
+              change: Exact.money(plan.changePaisa),
+              customerName: _customer?.name,
+            ),
+          );
 
       ref.read(cartProvider.notifier).clear();
       ref
@@ -190,7 +201,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
       // Leave the counter screens behind: Back from the invoice goes home.
       router.go('/home');
-      unawaited(router.push('/sales/${sale.id}?new=1'));
+      unawaited(
+        router.push(result.isPending ? '/sales/pending/${result.pendingUuid}?new=1' : '/sales/${result.sale!.id}?new=1'),
+      );
     } catch (error) {
       if (!mounted) return;
       setState(() {

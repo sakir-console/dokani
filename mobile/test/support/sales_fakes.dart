@@ -18,6 +18,13 @@ class FakeCustomerRepository implements CustomerRepository {
   final Map<int, List<LedgerEntry>> _ledgers = {};
   int _nextId = 700;
 
+  /// While true every call fails the way a phone without internet fails.
+  bool offline = false;
+
+  void _net() {
+    if (offline) throw const ApiException(kind: ApiErrorKind.network);
+  }
+
   final List<String> collections = [];
   final Set<String> _seenUuids = {};
   final List<CustomerDraft> created = [];
@@ -68,6 +75,7 @@ class FakeCustomerRepository implements CustomerRepository {
 
   @override
   Future<List<Customer>> customers({String query = '', bool hasDue = false}) async {
+    _net();
     final q = query.toLowerCase();
     final list = _customers
         .where((c) => (q.isEmpty || c.name.toLowerCase().contains(q) || c.phone.contains(q)) && (!hasDue || c.dueValue > 0))
@@ -77,13 +85,20 @@ class FakeCustomerRepository implements CustomerRepository {
   }
 
   @override
-  Future<Customer?> lookup(String phone) async => _customers.where((c) => c.phone == phone).firstOrNull;
+  Future<Customer?> lookup(String phone) async {
+    _net();
+    return _customers.where((c) => c.phone == phone).firstOrNull;
+  }
 
   @override
-  Future<Customer> customer(int id) async => _customers.firstWhere((c) => c.id == id);
+  Future<Customer> customer(int id) async {
+    _net();
+    return _customers.firstWhere((c) => c.id == id);
+  }
 
   @override
   Future<Customer> create(CustomerDraft draft) async {
+    _net();
     if (_customers.any((c) => c.phone == draft.phone)) {
       throw _refusal('CUSTOMER_EXISTS', 'A customer with this mobile number already exists.');
     }
@@ -100,7 +115,10 @@ class FakeCustomerRepository implements CustomerRepository {
       _replace(_customers.firstWhere((c) => c.id == id), name: draft.name, phone: draft.phone, address: draft.address);
 
   @override
-  Future<List<LedgerEntry>> ledger(int customerId) async => [...?_ledgers[customerId]];
+  Future<List<LedgerEntry>> ledger(int customerId) async {
+    _net();
+    return [...?_ledgers[customerId]];
+  }
 
   @override
   Future<Customer> collectDue({
@@ -110,6 +128,7 @@ class FakeCustomerRepository implements CustomerRepository {
     required PaymentMethod method,
     String? transactionId,
   }) async {
+    _net();
     final customer = _customers.firstWhere((c) => c.id == customerId);
     if (!_seenUuids.add(clientUuid)) return customer; // a repeat of the same request
 
@@ -138,13 +157,25 @@ class FakeSalesRepository implements SalesRepository {
   final Map<String, Sale> _byUuid = {};
   final List<String> voided = [];
   ApiException? failNext;
+
+  /// While true, saving a sale fails the way a phone without internet fails.
+  bool offline = false;
+
+  /// The next sale is saved, but the answer never reaches the phone (a timeout).
+  bool loseNextResponse = false;
+
+  /// When false, stock is not checked: how the server treats sales made offline.
+  bool checkStock = true;
   int _nextId = 1;
+
+  Sale? byUuid(String clientUuid) => _byUuid[clientUuid];
 
   List<Sale> get all => List.unmodifiable(_sales);
 
   @override
   Future<Sale> createSale(SaleDraft draft, {DateTime? soldAt, String? offlineRef}) async {
     received.add(draft);
+    if (offline) throw const ApiException(kind: ApiErrorKind.network);
 
     final failure = failNext;
     if (failure != null) {
@@ -162,7 +193,7 @@ class FakeSalesRepository implements SalesRepository {
       if (Exact.paisa(line.unitPrice) != Exact.paisa(variant.sellingPrice)) {
         throw _refusal('PRICE_OVERRIDE_NOT_ALLOWED', 'The price has changed. Refresh and try again.', 403);
       }
-      if (Exact.milli(line.quantity) > Exact.milli(variant.stockQuantity)) {
+      if (checkStock && Exact.milli(line.quantity) > Exact.milli(variant.stockQuantity)) {
         throw _refusal('INSUFFICIENT_STOCK', 'Only ${variant.stockQuantity} left of "${product.name}".', 409);
       }
       final total = Exact.lineTotal(Exact.paisa(variant.sellingPrice), Exact.milli(line.quantity));
@@ -215,6 +246,10 @@ class FakeSalesRepository implements SalesRepository {
 
     _sales.insert(0, sale);
     _byUuid[draft.clientUuid] = sale;
+    if (loseNextResponse) {
+      loseNextResponse = false;
+      throw const ApiException(kind: ApiErrorKind.timeout);
+    }
     return sale;
   }
 

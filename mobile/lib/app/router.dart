@@ -19,12 +19,14 @@ import '../features/home/presentation/home_screen.dart';
 import '../features/pos/presentation/cart_screen.dart';
 import '../features/pos/presentation/checkout_screen.dart';
 import '../features/pos/presentation/invoice_screen.dart';
+import '../features/pos/presentation/pending_sale_screen.dart';
 import '../features/pos/presentation/pos_screen.dart';
 import '../features/pos/presentation/sales_screen.dart';
 import '../features/reports/presentation/reports_screen.dart';
 import '../features/scanner/scanner_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/shop/presentation/edit_shop_screen.dart';
+import '../features/sync/presentation/sync_screen.dart';
 import '../features/vendors/presentation/vendors_screen.dart';
 
 const _publicPaths = {'/login', '/register', '/forgot-password', '/reset-password'};
@@ -113,6 +115,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/sales',
         builder: (_, _) => const SalesScreen(),
         routes: [
+          // A sale saved on this phone, known only by its own id until the server confirms it.
+          GoRoute(
+            path: 'pending/:uuid',
+            builder: (_, state) => PendingSaleScreen(
+              clientUuid: state.pathParameters['uuid']!,
+              justCompleted: state.uri.queryParameters['new'] == '1',
+            ),
+          ),
           GoRoute(
             path: ':id',
             redirect: (_, state) => int.tryParse(state.pathParameters['id']!) == null ? '/sales' : null,
@@ -135,6 +145,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
       GoRoute(path: '/reports', builder: (_, _) => const ReportsScreen()),
+      GoRoute(path: '/sync', builder: (_, _) => const SyncScreen()),
       GoRoute(path: '/categories', builder: (_, _) => const CategoriesScreen()),
       GoRoute(path: '/vendors', builder: (_, _) => const VendorsScreen()),
       GoRoute(path: '/scan', builder: (_, _) => const ScannerScreen()),

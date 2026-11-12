@@ -12,11 +12,12 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../catalog/application/catalog_providers.dart';
-import '../../catalog/data/catalog_repository.dart';
 import '../../catalog/data/models.dart';
 import '../../catalog/presentation/product_widgets.dart';
 import '../../scanner/barcode_scan.dart';
 import '../application/cart_controller.dart';
+import '../application/pos_catalog.dart';
+import '../application/pos_product_list.dart';
 
 /// The counter: find products by search or by scanning, tap to add them to
 /// the cart. Tapping again adds one more.
@@ -39,10 +40,10 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     super.initState();
     _scroll.addListener(() {
       if (_scroll.position.pixels > _scroll.position.maxScrollExtent - 400) {
-        ref.read(productListProvider.notifier).loadMore();
+        ref.read(posProductListProvider.notifier).loadMore();
       }
     });
-    Future.microtask(() => ref.read(productListProvider.notifier).open());
+    Future.microtask(() => ref.read(posProductListProvider.notifier).open());
   }
 
   @override
@@ -92,7 +93,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
 
   Future<void> _scan() async {
     final l10n = AppLocalizations.of(context);
-    final catalog = ref.read(catalogRepositoryProvider);
+    final catalog = ref.read(posCatalogProvider);
 
     await ref.read(continuousScanProvider)(context, (code) async {
       try {
@@ -112,7 +113,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final locale = Localizations.localeOf(context).languageCode;
-    final products = ref.watch(productListProvider);
+    final products = ref.watch(posProductListProvider);
     final cart = ref.watch(cartProvider);
 
     return Scaffold(
@@ -159,7 +160,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                 _debounce?.cancel();
                 _debounce = Timer(
                   const Duration(milliseconds: 350),
-                  () => ref.read(productListProvider.notifier).search(value),
+                  () => ref.read(posProductListProvider.notifier).search(value),
                 );
               },
             ),
@@ -178,7 +179,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         icon: Icons.cloud_off_outlined,
         title: describeError(products.error!, l10n),
         action: OutlinedButton(
-          onPressed: () => ref.read(productListProvider.notifier).refresh(),
+          onPressed: () => ref.read(posProductListProvider.notifier).refresh(),
           child: Text(l10n.retry),
         ),
       );
