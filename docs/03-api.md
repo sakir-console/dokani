@@ -251,15 +251,59 @@ How the figures are defined:
 
 Exports: Excel keeps amounts numeric and phone numbers, barcodes and invoice numbers as text. CSV is UTF-8 with a byte-order mark and exact amounts. In both, text beginning with `=`, `+`, `-` or `@` is stored as plain text so a spreadsheet does not run it as a formula.
 
-## Offline sync — Phase 5
+## Offline sync — ✅ implemented in Phase 5 (module `offline`)
 
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/devices` | register the phone: `device_uuid, name, platform, app_version, fcm_token?` |
-| GET | `/sync/pull?since=<cursor>&types=products,variants,barcodes,categories,customers` | changed and deleted rows since the cursor + the next cursor |
-| POST | `/sync/push` | `{ "customers": [...], "sales": [...], "due_collections": [...] }`, max 50 per call. Response lists each `client_uuid` with `status: created|duplicate|failed`, the server record and, for failures, `code` + `message` |
+| POST | `/devices` | register or refresh the phone: `uuid` (the phone's own random id), `name?`, `platform?`, `app_version?` |
+| GET | `/sync/products?since=<cursor>&page=<n>` | products with variants and barcodes, 200 per page |
+| GET | `/sync/customers?since=<cursor>&page=<n>` | customers with their current due |
+| GET | `/sync/categories?since=<cursor>` | categories (one page) |
+| POST | `/sync/push` | what the phone recorded offline; see below |
+| GET | `/notifications?unread=1` | notices for the shop, newest first; `meta.unread` is the unread count |
+| POST | `/notifications/{id}/read`, `/notifications/read-all` | mark as read |
 
-`/sync/push` processes each record in its own transaction, so one bad sale does not block the rest.
+**Pull.** Without `since` the whole list is returned (the first sync). With `since`, only rows changed after that moment, plus `deleted_ids` for rows deleted since.
+The response is `{ "data": [...], "deleted_ids": [...], "meta": { "current_page", "last_page", "cursor" } }`.
+The phone keeps the `cursor` from the **first page** of a round and sends it as `since` next time, and only after every page has arrived.
+The cursor is five seconds in the past, so a row saved while the request ran is sent again rather than missed; receiving a row twice is harmless.
+A stock or price change touches only the variant, so a product is "changed" when it or any of its variants changed.
+
+**Push.**
+
+```json
+{
+  "device": { "uuid": "…", "platform": "android" },
+  "sales": [ { "client_uuid": "…", "sold_at": "2026-11-12T09:15:00Z", "offline_ref": "OFF-27FC4E6D", "items": [...], "grand_total": "45.00", "payments": [...], "due_amount": "0.00", "customer": { "phone": "018…", "name": "…" } } ],
+  "due_collections": [ { "client_uuid": "…", "customer_id": 12, "amount": "50", "method": "cash", "transaction_id": null, "paid_at": "2026-11-12T09:20:00Z" } ]
+}
+```
+
+A sale has the same fields as `POST /sales`. A due collection names the customer by `customer_id` or `customer_phone`. At most 50 of each per call.
+
+Each record is stored in its own transaction and gets its own answer, in the order sent:
+
+```json
+{ "data": { "sales": [ { "client_uuid": "…", "status": "created", "server": { "id": 31, "invoice_no": "INV-000031", "invoice_url": "…", "has_stock_conflict": false } } ],
+            "due_collections": [ { "client_uuid": "…", "status": "failed", "code": "CUSTOMER_NOT_FOUND", "message": "…" } ] } }
+```
+
+| `status` | Meaning | What the phone does |
+|---|---|---|
+| `created` | stored now | marks the record confirmed |
+| `duplicate` | already stored by an earlier attempt, online or through sync | marks the record confirmed |
+| `failed` | not stored; `code` and `message` say why | keeps the record, shows the reason, tries again on the next sync |
+
+How a sale pushed here differs from `POST /sales`:
+
+- The **time and prices from the phone** are kept (the sale already happened). A `sold_at` older than 90 days or in the future is replaced by the server's time rather than refused, so a phone with a wrong clock cannot block its own sales.
+- **Stock is never a reason to refuse.** If the sale takes a variant below zero, the sale is stored, marked `has_stock_conflict`, and a `stock_conflict` notification is raised for the shop.
+- A product **deleted since** the phone last synced can still be sold.
+- The plan's monthly sales limit and the customer's credit limit are not applied.
+- Arithmetic is still checked: totals that do not add up, or a due without a customer, are answered `failed`.
+- A due collection may exceed what the server thinks is owed (the money was taken); the customer's balance then shows an advance.
+
+Roles apply per list: without `pos.sell` every sale is answered `failed` with `FORBIDDEN`, likewise `due.collect` for collections. A suspended shop gets `403` for the whole request and nothing is stored.
 
 ## Subscription (shop side) — Phase 6
 

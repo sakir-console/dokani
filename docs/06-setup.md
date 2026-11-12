@@ -97,6 +97,7 @@ Tests use the `dokani_test` database (see `phpunit.xml`) and reset it themselves
 | `tests/Feature/Api/VoidAndInvoiceTest.php` | Void reverses stock, ledger and payments by new rows; public invoice page and JSON leak nothing private; bad tokens; rate limit; PDF content and receipt widths (needs `pdftotext` to read the PDF, otherwise that check is skipped); dashboard figures and time zone |
 | `tests/Feature/Api/SaleConcurrencyTest.php` | Separate processes at once: no overselling, consecutive invoice numbers, one sale for eight identical requests, six due sales to one new customer all reach the ledger. Needs `pcntl` |
 | `tests/Feature/Api/ReportTest.php` | Summary figures with discounts, charges, a cancelled sale and a due collection; profit from frozen costs; every period against a fixed calendar, including the shop's midnight and Saturday week start; payment methods; best sellers; low stock; dues; plan and role gating; tenant isolation; CSV, Excel (read back with PhpSpreadsheet) and PDF exports; formula-injection protection |
+| `tests/Feature/Api/SyncTest.php` | First sync and later changes (stock, barcodes, deletions); paging; nothing missed when a row changes during a sync; offline sales keep the phone's time and price; the same sale sent twice, or sent online and again through sync, is stored once; overselling is accepted, flagged and reported; deleted products; offline due sales and collections; bad arithmetic is answered `failed`, not stored; roles; suspended shops; batch limit; device registration; isolation between shops |
 | `tests/Feature/Admin/GlobalCatalogAdminTest.php` | Admin catalogue screens: access, add with image and variants, validation, edit, hide, delete |
 | `tests/Feature/Admin/AdminPanelTest.php` | Admin guard is separate from shop users; login lockout; dashboard numbers; search and filters; suspend/restore is audited and takes effect on the API immediately |
 
@@ -119,6 +120,12 @@ flutter analyze
 flutter test
 ```
 
+The phone's database code (`lib/core/database/local_database.g.dart`) is generated and committed. After changing a table in `local_database.dart`, regenerate it:
+
+```bash
+dart run build_runner build
+```
+
 Run on an Android emulator against a backend on the same computer (the default API address is `http://10.0.2.2:8000/api/v1`, the emulator's name for the host machine):
 
 ```bash
@@ -135,6 +142,13 @@ For a phone on the same Wi-Fi as a development machine, start the backend with `
 Plain `http` is allowed in debug builds only; release builds require `https`.
 
 **Barcode scanner.** The scanner uses the `mobile_scanner` package (CameraX + ML Kit, model bundled in the app so it works offline). It needs a real device: the automated tests replace the camera with a fixed result, so scanning speed, autofocus and low-light behaviour are untested until the app runs on phones.
+
+**Offline mode against a real server.** `tool/sync_contract_test.dart` runs the app's own sync code against a running backend: first download, two sales and a due collection made with the connection cut, their arrival exactly once, a duplicate push, an oversold sale and its alert, and a refused record. It is not part of `flutter test` because it needs a server:
+
+```bash
+cd backend && php artisan migrate:fresh --seed && php artisan serve --port=8010
+cd mobile  && flutter test tool/sync_contract_test.dart     # DOKANI_API=... to use another address
+```
 
 Render the main screens to PNG files without a phone (written to `mobile/tool/screenshots/`):
 
@@ -157,5 +171,10 @@ FLUTTER_ROOT=$(dirname $(dirname $(which flutter))) flutter test tool/screenshot
 | `test/core/exact_test.dart`, `test/features/pos/cart_and_payment_test.dart` | Integer arithmetic matches the server's rounding; cart rules; who pays what at checkout (change, due, split) |
 | `test/features/pos/pos_flow_test.dart` | The counter end to end against an in-memory server: cash sale, change, partial and split payment, due needs a customer, new customer, variants, stock limits, cart edits, continuous scanning, retry with the same id, share, cancel, cashier limits |
 | `test/features/pos/customers_and_dashboard_test.dart` | Dashboard figures by role, due collection in instalments, customers, sales history |
+| `test/core/database/local_database_test.dart` | The phone's database against real SQLite: product and barcode cache, search, local stock, customers, the outbox (no duplicates, failed rows kept, only confirmed rows pruned) |
+| `test/core/sync/sync_engine_test.dart` | Full first download and later deltas; an interrupted download starts the round again; deletions; a queued sale is sent once; nothing is lost without a connection; refused records are kept with the reason and retried; batches of 50; simultaneous syncs run as one; push before pull |
+| `test/features/pos/sale_submitter_test.dart` | A sale is queued before it is sent; confirmed at once when online; kept when there is no answer (no internet, timeout, 500, 429, expired login); not recorded twice when the answer is lost; a clear refusal is shown and not queued; local stock and the customer's balance on the phone; due collections the same way; deliberate removal of a refused record |
+| `test/features/pos/offline_flow_test.dart` | The real app with a local database: selling and scanning without internet, the waiting invoice and its change to confirmed, the notice on home, the sync screen, refused records and who may remove them, the warning before logging out, customers and due collection offline, Bangla |
+| `test/features/screens/alerts_test.dart` | Unread count on the bell, the alerts screen, mark all as read, behaviour without a connection |
 | `test/features/reports/reports_test.dart` | Who sees reports; period switching; figures; money received; best-seller ranking; export of the chosen report and file type; failure handling; Bangla |
 | `test/features/screens/*.dart` | The real app with a fake server: Bangla by default, language switch, form validation, login, registration, password reset, home, settings, shop editing, role and suspension rules |

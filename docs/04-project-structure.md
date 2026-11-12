@@ -76,8 +76,8 @@ mobile/lib/
 │   ├── config/                  environment (API base URL via --dart-define)
 │   ├── network/                 Dio client, auth interceptor, ApiException mapping
 │   ├── storage/                 secure token store, preferences
-│   ├── database/                Drift database, tables, DAOs        (Phase 5)
-│   ├── sync/                    outbox, sync engine, connectivity   (Phase 5)
+│   ├── database/                Drift database: cached products, barcodes, customers; the outbox
+│   ├── sync/                    sync API client and sync engine (push, then pull)
 │   ├── money/                   Money type (integer paisa), formatters (৳, Bangla digits)
 │   ├── l10n/                    app_bn.arb, app_en.arb, generated localizations
 │   └── widgets/                 AppButton, AppTextField, StatCard, EmptyState, ErrorView, LoadingView
@@ -96,6 +96,8 @@ mobile/lib/
     ├── sales/                   history, sale detail
     ├── invoices/                invoice view, PDF, share, thermal print
     ├── reports/
+    ├── sync/                    the "waiting to be sent" screen
+    ├── notifications/           alerts raised by the server (stock conflicts)
     └── subscription/
 ```
 
@@ -108,7 +110,7 @@ Packages (each chosen for one job):
 | HTTP | `dio` |
 | Secure token storage | `flutter_secure_storage` |
 | Preferences | `shared_preferences` |
-| Offline database | `drift` + `sqlite3_flutter_libs` (Phase 5) |
+| Offline database | `drift` + `sqlite3` (the SQLite library is built with the app; `drift_dev` and `build_runner` generate the table code) |
 | Barcode/QR scanning | `mobile_scanner` (CameraX + ML Kit) (Phase 2) |
 | Localisation | `flutter_localizations` + `intl`, ARB files |
 | Image picking | `image_picker` |

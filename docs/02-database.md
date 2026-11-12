@@ -118,8 +118,9 @@ One row per device login.
 #### `otp_codes` (G)
 `id`, `phone`, `purpose` (`register`,`reset_password`), `code_hash`, `attempts` tinyint, `expires_at`, `consumed_at` null, timestamps. Index `(phone, purpose)`.
 
-#### `devices` (T) — registered phones, for push and offline numbering
-`id`, `shop_id`, `user_id`, `device_uuid` char(36), `name`, `platform`, `app_version`, `fcm_token` null, `last_seen_at`, timestamps. Unique `(shop_id, device_uuid)`.
+#### `devices` (T) — phones that have synced
+`id`, `shop_id`, `user_id`, `device_uuid` char(36), `name` null, `platform` null, `app_version` null, `last_seen_at`, `last_synced_at`, timestamps. Unique `(shop_id, device_uuid)`.
+`sales.device_id` (nullable) records which phone an offline sale came from. An `fcm_token` column will be added with push notifications (Phase 7).
 
 ### Plans, modules, subscriptions
 
@@ -392,8 +393,9 @@ The public route looks up by `public_token` only. PDFs are rendered on request, 
 `id`, `shop_id` null (null for platform events), `actor_type` (`user`,`admin`,`system`), `actor_id` null, `action` (`sale.voided`, `shop.suspended`, `product.price_changed`, …), `subject_type`, `subject_id`, `old_values` json null, `new_values` json null, `ip` null, `user_agent` null, `created_at`.
 Index `(shop_id, created_at)`, `(subject_type, subject_id)`, `(action)`.
 
-#### `notifications` (T)
-`id`, `shop_id`, `type` (`low_stock`, `stock_conflict`, `subscription_expiring`), `title`, `body`, `data` json, `read_at` null, timestamps.
+#### `shop_notifications` (T)
+`id`, `shop_id`, `type`, `title`, `body` null, `data` json null, `read_at` null, timestamps. Index `(shop_id, read_at, id)`.
+The only type raised so far is `stock_conflict` (an offline sale took stock below zero); `data` holds `sale_id`, `invoice_no` and the product names. `low_stock` and `subscription_expiring` are planned.
 
 #### Laravel infrastructure tables
 `jobs`, `failed_jobs`, `job_batches`, `cache`, `cache_locks`, `sessions` (admin panel), `password_reset_tokens` (admins).
@@ -410,5 +412,19 @@ Index `(shop_id, created_at)`, `(subject_type, subject_id)`, `(action)`.
 1. Phase 1 — `users`, `admins`, `personal_access_tokens`, `shops`, `shop_users`, `otp_codes`, `modules`, `plans`, `plan_module`, `shop_module_overrides`, `subscriptions`, `subscription_payments`, `audit_logs`, infrastructure tables
 2. Phase 2 — `units`, `brands`, `vendors`, `global_categories`, `global_products`, `global_product_variants`, `products`, `product_variants`, `barcodes`, `stock_movements` (`categories` was created in Phase 1)
 3. Phase 3 — `customers`, `shop_sequences`, `sales`, `sale_items`, `payments`, `customer_ledgers`, `invoices`
-4. Phase 5 — `devices`, `notifications`
+4. Phase 5 — `devices`, `shop_notifications`, `sales.device_id`, index `customers (shop_id, updated_at)`
 5. Later — `purchases`, `purchase_items`, `expense_categories`, `expenses`
+
+## The phone's own database (Phase 5)
+
+Offline mode keeps a small SQLite database on the phone, one file per shop (`dokani_shop_<id>.sqlite`), managed with Drift. It is a working copy and a queue, not a second source of truth.
+
+| Table | Holds |
+|---|---|
+| `cached_products` | `id`, lower-cased name for searching, and the product exactly as the server sent it (JSON, with variants and barcodes) |
+| `cached_barcodes` | `code` → `variant_id`, `product_id`; rebuilt whenever a product is stored |
+| `cached_customers` | `id`, `phone`, lower-cased name, and the customer as the server sent it |
+| `outbox_entries` | one row per sale or due collection made on the phone: `client_uuid` (unique), `kind`, the request `payload`, a `display` copy for showing it before the server has seen it, `status` (`pending`, `synced`, `failed`), `error_code`, `error_message`, `attempts`, `created_at`, and the `server` answer once confirmed |
+| `sync_state` | key/value: the pull cursor for each list |
+
+Rules the code keeps: a row leaves `outbox_entries` only when it is `synced` and more than seven days old, or when the user deletes a `failed` row on purpose; `pending` rows are never deleted.

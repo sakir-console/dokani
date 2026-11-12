@@ -59,7 +59,7 @@ Legend: ✅ done and tested · 🟡 partly done · ⬜ not started · – not ap
 | Categories | ✅ | – | ✅ | Sub-categories exist in the API; the app manages one level |
 | Brands, units | ✅ | – | 🟡 | App picks units and creates brands from the product form; no screen to add custom units or rename brands |
 | Products and variants | ✅ | – | ✅ | Variant attributes (size/colour as separate fields) are stored by the API but the app only edits the variant name |
-| Barcodes and scanner | ✅ | – | 🟡 | Lookup, uniqueness, scan-to-find, scan-to-fill and continuous scanning into the cart. The camera itself is untested on real phones. Offline lookup is Phase 5 |
+| Barcodes and scanner | ✅ | – | 🟡 | Lookup, uniqueness, scan-to-find, scan-to-fill and continuous scanning into the cart. The camera itself is untested on real phones. Scanning at the counter works offline from the phone's copy |
 | Vendors | ✅ | – | 🟡 | CRUD, search, picker in the product form. Vendor's product list and purchase history are API-only so far |
 | Global catalogue | ✅ | ✅ | ⬜ | Admin can manage it and the import API works; the app has no browse/import screen yet |
 | Inventory | ✅ | – | 🟡 | Stock in/out/correct and low/out-of-stock alerts in the app. Movement history is API-only |
@@ -70,7 +70,8 @@ Legend: ✅ done and tested · 🟡 partly done · ⬜ not started · – not ap
 | Invoices (page, PDF, QR) | ✅ | – | 🟡 | Public page, PDF (A4/80mm/58mm), QR. The app shares a link and opens the PDF in the browser; it does not attach the PDF file. Printing is Phase 7 |
 | Dashboard | ✅ | ✅ | ✅ | Shop: today's sales, profit, orders, items, customer due, stock alerts. Recent sales are in the API but not shown on the home screen |
 | Reports and exports | ✅ | – | ✅ | The daily breakdown is API-only; the app shows no chart. Dates and unit names inside reports are in English even in the Bangla UI |
-| Offline sync | ⬜ | – | 🟡 | The app opens and stays signed in offline from a cached session; offline selling is Phase 5 |
+| Offline sync | ✅ | – | ✅ | Selling, scanning, due sales and due collection work offline and sync later, exactly once. Product and stock changes, new customers, reports and history need a connection. Never run on a real phone or a real flaky network |
+| Alerts | 🟡 | – | 🟡 | Stock conflicts from offline sales are raised and shown in the app. No low-stock or expiry alerts yet, and no push delivery |
 | Subscription management | 🟡 | ⬜ | ⬜ | Data model and enforcement exist; no renew/upgrade actions yet |
 | Audit log | ✅ | 🟡 | – | Written for registration, shop changes, password changes, admin actions; shown per shop, no global viewer yet |
 | Thermal printing | – | – | ⬜ | Needs printers to test |
@@ -238,3 +239,60 @@ The multi-process sale test deadlocked: when several first sales of a shop arriv
 **Next: Phase 5 — offline mode**
 
 A local database on the phone (Drift), cached products and barcodes with delta sync, an outbox for offline sales and due collections, push with per-record results, stock-conflict flags, device registration, sync status in the app and offline receipts.
+
+## Phase 5 record
+
+**What was built**
+
+- Server: delta pull for products (with variants and barcodes), customers and categories; `POST /sync/push` with one answer per record; an offline path through sale creation and due collection; devices; shop notifications.
+- App: a SQLite database per shop (Drift) holding a copy of products, barcodes and customers and an outbox; a sync engine (push, then pull); the counter and scanner read the phone's copy; every sale and due collection is queued on the phone before it is sent; a pending invoice that turns into a confirmed one; a sync screen; a notice on home while anything is unsent; a warning before logging out with unsent records; customers and due collection from the phone's copy when there is no connection; an alerts screen for stock conflicts.
+
+**Automated checks at the end of Phase 5**
+
+| Suite | Result |
+|---|---|
+| `backend`: `php artisan test` | 248 tests, all passing (MariaDB 10.11) |
+| `mobile`: `flutter analyze` | no issues |
+| `mobile`: `flutter test` | 220 tests, all passing |
+| `mobile`: `flutter test tool/sync_contract_test.dart` | passing against a locally running backend |
+
+**Checked by hand**
+
+- The app's own sync code against the real Laravel server over HTTP (`tool/sync_contract_test.dart`): first download; a cash sale and a due sale to a new customer made with the connection cut; both arrive once with real invoice numbers; the server's stock and the phone's agree afterwards; the same sale pushed again is answered `duplicate`; an offline due collection reduces the balance on both sides; an oversold sale is accepted, takes stock to −2 and raises a stock-conflict alert that the app reads and marks as read; a sale for a product that does not exist stays on the phone with the server's reason.
+- The pending invoice, the home notice and the sync screen rendered to images in Bangla.
+
+**Not verified**
+
+- **The app has still never run on a phone or emulator.** In particular: creating and opening the SQLite file on Android (the tests use an in-memory database through the same code), the background isolate, the database surviving an app update, and sync on resume from the background.
+- Behaviour on a real unstable mobile network (slow, half-open connections). "No connection" is simulated by refused connections and injected timeouts.
+- Speed with a large catalogue. The first download is 200 products per request; searching the phone's copy and adjusting local stock have not been measured beyond a few thousand rows in theory and a handful in tests.
+- Two phones selling the same last item offline: each case is covered by the stock-conflict rule and its tests, but two real devices were not used.
+- MySQL 8 (the tests run on MariaDB 10.11).
+
+**Decisions made during Phase 5**
+
+- **Queue first, then send**, even when online. The cost is one local write per sale; the gain is that a sale cannot be lost between "Complete" and the server's answer.
+- A clear refusal from the server at the checkout (HTTP 4xx other than 401, 408, 429) is shown to the cashier and not queued. Everything else keeps the record: no connection, timeout, expired login, rate limit, server fault.
+- Failed records are retried on every sync, because the cause may have been fixed on the server. Only an owner or manager can delete one, after a warning, and only if it is in the failed state.
+- Sales pushed from the queue are never refused for stock, plan limits or credit limits: the goods have left the shop. They are refused only if the arithmetic is wrong, the product never existed in this shop, or the user may not sell.
+- The phone's database belongs to the shop, not the login, and is **kept on logout** so unsent sales survive. It is not encrypted. It holds product prices (cost price only if the user's role may see it) and customers' names, phone numbers and balances.
+- The pull cursor is saved only after every page of a round has arrived; an interrupted download starts that round again.
+- Retry is a fixed 45 seconds while something is waiting, plus app resume, sign-in and the manual button. There is no listener for "connectivity changed" and no exponential backoff, to avoid another plugin that cannot be tested here.
+- The temporary invoice reference is `OFF-` plus eight characters of the sale's id rather than a per-device counter, so it needs no coordination.
+- A phone clock that is wrong by more than 90 days back or any amount forward does not block a sale; the server's time is used instead.
+- `sqlite3_flutter_libs` was dropped: current `sqlite3` builds the library itself. `drift`, `drift_dev`, `build_runner`, `path_provider` and `path` were added.
+
+**Left for later from Phase 5's scope**
+
+- Offline product and stock changes, adding a customer offline (other than through a due sale), and offline views of sales history, the ledger and reports.
+- The category list is synced by the server but the counter does not filter by category yet.
+- Product images are not stored for offline use; without a connection the counter shows initials.
+- A printed or shareable receipt for a sale that has not reached the server (the customer link and QR code exist only after sync).
+- Low-stock and subscription alerts; push delivery of alerts.
+- Encrypting the phone's database and configuring Android backup rules for it.
+- Showing on a confirmed invoice that it was made offline or had a stock conflict (the API returns both flags).
+
+**Next: Phase 6 — subscriptions and the full admin panel**
+
+Plan editing (modules, limits, prices), renew/upgrade/downgrade with recorded payments, the expiry job and fallback to the default plan, per-shop module overrides in the admin panel, admin accounts, the audit log viewer and platform analytics; in the app, a plan screen showing limits and usage.
+

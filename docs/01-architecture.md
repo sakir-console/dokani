@@ -216,19 +216,22 @@ The phone is a full POS without a connection; the server is the source of truth 
 
 | Data | Direction | Mechanism |
 |---|---|---|
-| Products, variants, barcodes, categories, customers | Server → device | Delta pull: `GET /sync/pull?since=<cursor>` returns rows changed since the cursor, including soft-deleted ones |
-| Sales, due collections, new customers | Device → server | Outbox table in SQLite, pushed in order with `POST /sync/push` |
+| Products, variants, barcodes, customers | Server → device | Delta pull: `GET /sync/products`, `/sync/customers` with `?since=<cursor>` return rows changed since the cursor and the ids of deleted ones |
+| Sales, due collections | Device → server | Outbox table in SQLite, pushed in order with `POST /sync/push` |
 
-Rules:
+Rules (as built in Phase 5):
 
-- Every offline record carries a **client-generated UUID v4**. The server enforces `UNIQUE(shop_id, client_uuid)`, so a retry after a dropped connection returns the original result instead of creating a duplicate.
-- Each outbox row has a status: `pending → syncing → synced`, or `failed` with the server's reason. Failed rows stay on the device and are shown to the user. **Nothing is deleted from the outbox until the server confirms it.**
-- Retries use exponential backoff and run on connectivity change, on app resume and from a manual "Sync now" button.
-- **Inventory conflicts.** An offline sale already happened; the goods have left the shop. The server therefore **accepts** it even if stock is insufficient, lets that variant's stock go negative, marks the sale `has_stock_conflict`, and raises a notification so the owner can correct stock. It is never rejected for stock.
+- Every sale and due collection carries a **client-generated UUID v4**. The server enforces `UNIQUE(shop_id, client_uuid)`, so a retry after a dropped connection returns the original result instead of creating a duplicate.
+- **Queue first, then send.** The app writes the record to the outbox *before* the first network attempt, even when online. If the app is killed or the answer is lost on the way back, the record is still there and is re-sent with the same id.
+- Each outbox row is `pending`, `synced`, or `failed` with the server's reason. Failed rows stay on the device, are shown to the user and are retried on every sync. **Nothing is deleted from the outbox until the server confirms it**, except a failed row the user removes on purpose (owner/manager only, after a warning).
+- A clear refusal while the cashier is still at the checkout (a rule was broken: total changed, stock ran out, no permission) is not queued; the reason is shown so the bill can be corrected. No answer, a timeout, an expired login, rate limiting or a server fault all keep the record queued.
+- Sync runs on sign-in, when the app returns to the foreground, after a sale that could not be sent, from the "Send now" button, and every 45 seconds while something is waiting. Push always runs before pull, so the server knows about this phone's sales before the phone asks for fresh stock.
+- **Inventory conflicts.** An offline sale already happened; the goods have left the shop. The server therefore **accepts** it even if stock is insufficient, lets that variant's stock go negative, marks the sale `has_stock_conflict`, and raises a notification the owner sees under Alerts in the app. It is never rejected for stock.
 - **Price changes.** The price the customer actually paid (captured on the device) is kept. The cost snapshot uses the server's cost at sync time.
-- **Invoice numbers.** The device prints a provisional number (`OFF-<device>-<n>`). The server assigns the real sequential number on sync and both are stored.
-- **Offline due sales** carry the customer's phone and name (or an offline-created customer's UUID), so the ledger is rebuilt exactly on sync.
-- The UI shows a badge on every sale: *Pending sync* or *Confirmed*.
+- **Invoice numbers.** The phone shows a temporary reference (`OFF-` and the first eight characters of the sale's id). The server assigns the real sequential number on sync and stores both.
+- **Offline due sales** carry the customer's phone and name; the server finds or creates the customer, so the ledger is rebuilt exactly on sync. The phone recognises existing customers from its own copy.
+- The UI says which state a sale is in: the pending invoice reads *Saved on this phone* with a temporary number and no QR code, and changes to *Confirmed by the server* with the real invoice number when the sync succeeds.
+- What is **not** available offline: adding or editing products, stock changes, adding customers, reports, sales history and the customer ledger. These need the server.
 
 ## 7. Global admin panel architecture
 
@@ -269,7 +272,7 @@ Admin code reads across shops deliberately, through explicit `withoutTenancy()` 
 | 1 | **Tenant data leak** through a forgotten `where shop_id` | Fatal for a SaaS | Fail-closed global scope, scoped validation rules, per-shop unique keys, mandatory isolation test per endpoint |
 | 2 | **Overselling under concurrency** (two cashiers, last item) | Wrong stock | `SELECT … FOR UPDATE` on variants in id order inside the sale transaction; a concurrency test against real MySQL |
 | 3 | **Duplicate sales from offline retries** | Double revenue, double stock deduction | Client UUID + unique index + idempotent endpoint returning the original sale |
-| 4 | **Lost offline sales** | Lost money, lost trust | Outbox is never pruned before server confirmation; failed rows are visible; SQLite file is included in Android auto-backup |
+| 4 | **Lost offline sales** | Lost money, lost trust | Outbox is written before the first network attempt and never pruned before server confirmation; failed rows are visible. Android auto-backup of the SQLite file is not configured or verified yet |
 | 5 | **Offline stock divergence** | Negative stock | Accept, flag, notify; never reject a completed sale |
 | 6 | **Floating-point money errors** | Totals off by paisa | `DECIMAL` in MySQL, `BigDecimal` in PHP, integer paisa in Dart; identical rounding rule (half-up, per line) on both sides |
 | 7 | **Ledger drift** (cached due ≠ ledger sum) | Wrong customer balance | Balance changed only inside the ledger service under a row lock; nightly reconciliation job |
