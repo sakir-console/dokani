@@ -646,5 +646,9 @@
       }
     }
   },
-  "showingSavedCopy": "No internet. Showing the copy saved on this phone."
+  "showingSavedCopy": "No internet. Showing the copy saved on this phone.",
+  "alerts": "Alerts",
+  "markAllRead": "Mark all as read",
+  "noAlertsTitle": "No alerts",
+  "noAlertsBody": "If a sale made without internet sells more than the stock, it is reported here."
 }

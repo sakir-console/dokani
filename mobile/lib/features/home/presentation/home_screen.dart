@@ -12,6 +12,7 @@ import '../../auth/application/auth_controller.dart';
 import '../../auth/data/session.dart';
 import '../../catalog/application/catalog_providers.dart';
 import '../../catalog/presentation/products_screen.dart';
+import '../../notifications/data/notification_repository.dart';
 import '../../pos/data/sales_repository.dart';
 import '../../shop/data/shop_types.dart';
 
@@ -36,6 +37,7 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(l10n.appName),
         actions: [
+          if (session.shop.status == ShopStatus.active) const _AlertsButton(),
           IconButton(
             tooltip: l10n.settings,
             icon: const Icon(Icons.settings_outlined),
@@ -84,6 +86,28 @@ class HomeScreen extends ConsumerWidget {
             _PlanCard(session: session),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The bell, with the number of unread notices. Without a connection it is
+/// simply a bell: the count is not known.
+class _AlertsButton extends ConsumerWidget {
+  const _AlertsButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final unread = ref.watch(noticesProvider).value?.unread ?? 0;
+
+    return IconButton(
+      tooltip: l10n.alerts,
+      onPressed: () => context.push('/alerts'),
+      icon: Badge(
+        isLabelVisible: unread > 0,
+        label: Text(NumberFormat.decimalPattern(Localizations.localeOf(context).languageCode).format(unread)),
+        child: const Icon(Icons.notifications_outlined),
       ),
     );
   }

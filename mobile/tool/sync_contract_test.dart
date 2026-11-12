@@ -16,6 +16,7 @@ import 'package:dokani/core/network/api_client.dart';
 import 'package:dokani/core/sync/sync_api.dart';
 import 'package:dokani/core/sync/sync_engine.dart';
 import 'package:dokani/features/customers/data/customer_repository.dart';
+import 'package:dokani/features/notifications/data/notification_repository.dart';
 import 'package:dokani/features/pos/application/pos_catalog.dart';
 import 'package:dokani/features/pos/application/sale_submitter.dart';
 import 'package:dokani/features/pos/data/sale_models.dart';
@@ -163,8 +164,12 @@ void main() {
     await sync();
     expect((await database.entry(oversold.pendingUuid!))?.status, 'synced');
     expect(await localStock(), '-2.000');
-    final notices = await online.get<Map<String, dynamic>>('/notifications');
-    expect((notices.data!['data'] as List).map((n) => (n as Map)['type']), contains('stock_conflict'));
+    final notices = await connected.read(notificationRepositoryProvider).latest();
+    expect(notices.unread, 1);
+    expect(notices.items.single.type, 'stock_conflict');
+    expect(notices.items.single.saleId, outboxServer((await database.entry(oversold.pendingUuid!))!)['id']);
+    await connected.read(notificationRepositoryProvider).markAllRead();
+    expect((await connected.read(notificationRepositoryProvider).latest()).unread, 0);
 
     // 7. A record the server cannot accept stays on the phone with the server's reason.
     final bad = Exact.uuid();

@@ -7,6 +7,7 @@ import 'package:dokani/features/auth/data/auth_repository.dart';
 import 'package:dokani/core/utils/external.dart';
 import 'package:dokani/features/catalog/data/catalog_repository.dart';
 import 'package:dokani/features/customers/data/customer_repository.dart';
+import 'package:dokani/features/notifications/data/notification_repository.dart';
 import 'package:dokani/features/pos/data/sales_repository.dart';
 import 'package:dokani/features/reports/data/report_repository.dart';
 import 'package:dokani/features/scanner/barcode_scan.dart';
@@ -51,6 +52,7 @@ Future<void> pumpApp(
   Outbox? outbox,
   LocalDatabase? database,
   FakeSyncApi? syncApi,
+  FakeNotificationRepository? notices,
 }) async {
   final catalogRepository = catalog ?? FakeCatalogRepository();
   final customerRepository = customers ?? sales?.customers ?? FakeCustomerRepository();
@@ -70,6 +72,7 @@ Future<void> pumpApp(
         sharedPreferencesProvider.overrideWithValue(preferences),
         localDatabaseProvider.overrideWithValue(database),
         syncApiProvider.overrideWithValue(syncApi ?? FakeSyncApi()),
+        notificationRepositoryProvider.overrideWithValue(notices ?? FakeNotificationRepository()),
         authRepositoryProvider.overrideWithValue(repository),
         catalogRepositoryProvider.overrideWithValue(catalogRepository),
         vendorRepositoryProvider.overrideWithValue(vendors ?? FakeVendorRepository()),

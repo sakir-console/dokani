@@ -18,6 +18,7 @@ import '../features/customers/presentation/customers_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/pos/presentation/cart_screen.dart';
 import '../features/pos/presentation/checkout_screen.dart';
+import '../features/notifications/presentation/alerts_screen.dart';
 import '../features/pos/presentation/invoice_screen.dart';
 import '../features/pos/presentation/pending_sale_screen.dart';
 import '../features/pos/presentation/pos_screen.dart';
@@ -146,6 +147,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/reports', builder: (_, _) => const ReportsScreen()),
       GoRoute(path: '/sync', builder: (_, _) => const SyncScreen()),
+      GoRoute(path: '/alerts', builder: (_, _) => const AlertsScreen()),
       GoRoute(path: '/categories', builder: (_, _) => const CategoriesScreen()),
       GoRoute(path: '/vendors', builder: (_, _) => const VendorsScreen()),
       GoRoute(path: '/scan', builder: (_, _) => const ScannerScreen()),

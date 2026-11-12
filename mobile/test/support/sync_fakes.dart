@@ -2,6 +2,7 @@ import 'package:dokani/core/network/api_exception.dart';
 import 'package:dokani/core/sync/sync_api.dart';
 import 'package:dokani/features/catalog/data/models.dart';
 import 'package:dokani/features/customers/data/customer_repository.dart';
+import 'package:dokani/features/notifications/data/notification_repository.dart';
 import 'package:dokani/features/pos/data/sale_models.dart';
 
 import 'sales_fakes.dart';
@@ -139,6 +140,28 @@ class FakeSyncApi implements SyncApi {
           }),
       ],
     );
+  }
+}
+
+/// Notices as the server would list them.
+class FakeNotificationRepository implements NotificationRepository {
+  FakeNotificationRepository([List<ShopNotice>? notices]) : notices = [...?notices];
+
+  List<ShopNotice> notices;
+  bool offline = false;
+
+  @override
+  Future<NoticeList> latest() async {
+    if (offline) throw const ApiException(kind: ApiErrorKind.network);
+    return NoticeList(items: notices, unread: notices.where((n) => !n.read).length);
+  }
+
+  @override
+  Future<void> markAllRead() async {
+    notices = [
+      for (final n in notices)
+        ShopNotice(id: n.id, type: n.type, title: n.title, body: n.body, read: true, createdAt: n.createdAt, saleId: n.saleId),
+    ];
   }
 }
 
