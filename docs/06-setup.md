@@ -4,7 +4,7 @@
 
 | Tool | Version used during development |
 |---|---|
-| PHP | 8.3 with `pdo_mysql`, `gd`, `mbstring`, `intl` |
+| PHP | 8.3 with `pdo_mysql`, `gd`, `mbstring`, `intl` (`pcntl` for the concurrency tests) |
 | Composer | 2.8 |
 | MySQL | 8.x (tests were run on MariaDB 10.11, which is compatible) |
 | Node.js | 22 (only to build the admin panel's CSS) |
@@ -54,6 +54,7 @@ Setting `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` makes the seeder create the
 | `FILESYSTEM_DISK` | Where logos are stored | `public` |
 | `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Optional first admin, created by the seeder | empty |
 | `SMS_DRIVER` | How OTP codes are sent | `log` |
+| `APP_URL` | Base of the public invoice links printed as QR codes. Must be the real public address in production | `http://localhost:8000` |
 | `APP_MIN_VERSION` | Oldest app version the API accepts (reported by `/meta`) | `1.0.0` |
 
 **OTP in development.** With `SMS_DRIVER=log` the code is written to `storage/logs/laravel.log` and no SMS is sent.
@@ -65,6 +66,7 @@ This is the only driver that exists so far. Before real users can reset a passwo
 |---|---|
 | `http://127.0.0.1:8000/api/v1/meta` | API health check / reference data |
 | `http://127.0.0.1:8000/admin` | Global Admin panel |
+| `http://127.0.0.1:8000/i/<token>` | Public invoice (the link in a sale's `invoice_url`) |
 
 ### Tests
 
@@ -89,6 +91,10 @@ Tests use the `dokani_test` database (see `phpunit.xml`) and reset it themselves
 | `tests/Feature/Api/StockConcurrencyTest.php` | 12 separate processes withdraw from a variant holding 5: exactly 5 succeed, stock ends at 0. Fails if the row lock is removed. Needs the `pcntl` extension (skipped without it) |
 | `tests/Feature/Api/CatalogSupportTest.php` | Units, brands, vendors; vendor module gating; deleting a brand/vendor/category keeps its products |
 | `tests/Feature/Api/GlobalCatalogTest.php` | Browse, search, import with the shop's own prices, independence of the copy, per-shop `already_imported`, product limit |
+| `tests/Feature/Api/SaleTest.php` | A sale records items, payments, stock movements and invoice; server-side totals and prices; half-up rounding per line; stock across duplicate lines; profit unchanged by later price changes; idempotency; plan monthly limit; the database CHECK on totals |
+| `tests/Feature/Api/DueTest.php` | Due requires a customer; partial and split payment; Total = Paid + Due; cash change; find-or-create customer by phone; credit limit; due collection in instalments; idempotent collection; ledger running balance; customer CRUD |
+| `tests/Feature/Api/VoidAndInvoiceTest.php` | Void reverses stock, ledger and payments by new rows; public invoice page and JSON leak nothing private; bad tokens; rate limit; PDF content and receipt widths (needs `pdftotext` to read the PDF, otherwise that check is skipped); dashboard figures and time zone |
+| `tests/Feature/Api/SaleConcurrencyTest.php` | Separate processes at once: no overselling, consecutive invoice numbers, one sale for eight identical requests, six due sales to one new customer all reach the ledger. Needs `pcntl` |
 | `tests/Feature/Admin/GlobalCatalogAdminTest.php` | Admin catalogue screens: access, add with image and variants, validation, edit, hide, delete |
 | `tests/Feature/Admin/AdminPanelTest.php` | Admin guard is separate from shop users; login lockout; dashboard numbers; search and filters; suspend/restore is audited and takes effect on the API immediately |
 
@@ -146,4 +152,7 @@ FLUTTER_ROOT=$(dirname $(dirname $(which flutter))) flutter test tool/screenshot
 | `test/features/catalog/models_test.dart` | Product JSON parsing; what a product draft sends |
 | `test/features/catalog/product_list_controller_test.dart` | Search, filters, paging, retry after failure, outdated responses ignored |
 | `test/features/catalog/*_test.dart` (screens) | Products list, product form (validation, variants, scan, inline category), product page and stock sheets, categories, vendors, role and plan rules |
+| `test/core/exact_test.dart`, `test/features/pos/cart_and_payment_test.dart` | Integer arithmetic matches the server's rounding; cart rules; who pays what at checkout (change, due, split) |
+| `test/features/pos/pos_flow_test.dart` | The counter end to end against an in-memory server: cash sale, change, partial and split payment, due needs a customer, new customer, variants, stock limits, cart edits, continuous scanning, retry with the same id, share, cancel, cashier limits |
+| `test/features/pos/customers_and_dashboard_test.dart` | Dashboard figures by role, due collection in instalments, customers, sales history |
 | `test/features/screens/*.dart` | The real app with a fake server: Bangla by default, language switch, form validation, login, registration, password reset, home, settings, shop editing, role and suspension rules |

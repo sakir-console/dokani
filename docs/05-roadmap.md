@@ -59,16 +59,16 @@ Legend: ✅ done and tested · 🟡 partly done · ⬜ not started · – not ap
 | Categories | ✅ | – | ✅ | Sub-categories exist in the API; the app manages one level |
 | Brands, units | ✅ | – | 🟡 | App picks units and creates brands from the product form; no screen to add custom units or rename brands |
 | Products and variants | ✅ | – | ✅ | Variant attributes (size/colour as separate fields) are stored by the API but the app only edits the variant name |
-| Barcodes and scanner | ✅ | – | 🟡 | Lookup, uniqueness, scan-to-find and scan-to-fill work. The camera itself is untested on real phones. Continuous scanning into a cart is Phase 3; offline lookup is Phase 5 |
+| Barcodes and scanner | ✅ | – | 🟡 | Lookup, uniqueness, scan-to-find, scan-to-fill and continuous scanning into the cart. The camera itself is untested on real phones. Offline lookup is Phase 5 |
 | Vendors | ✅ | – | 🟡 | CRUD, search, picker in the product form. Vendor's product list and purchase history are API-only so far |
 | Global catalogue | ✅ | ✅ | ⬜ | Admin can manage it and the import API works; the app has no browse/import screen yet |
 | Inventory | ✅ | – | 🟡 | Stock in/out/correct and low/out-of-stock alerts in the app. Movement history is API-only |
-| Customers and ledger | ⬜ | – | ⬜ | Phase 3 |
-| POS and sales | ⬜ | – | ⬜ | Phase 3 |
-| Payments (split, partial, due) | ⬜ | – | ⬜ | Phase 3 |
-| Due collection | ⬜ | – | ⬜ | Phase 3 |
-| Invoices (page, PDF, QR) | ⬜ | – | ⬜ | Phase 3 |
-| Dashboard | ⬜ | ✅ | ⬜ | Admin dashboard shows real platform numbers; shop dashboard is Phase 3 |
+| Customers and ledger | ✅ | – | ✅ | The app shows the latest 100 ledger entries; no paging yet |
+| POS and sales | ✅ | – | ✅ | Voiding cancels a whole sale; partial returns are not built. Sales history in the app has no date or status filters yet (the API does) |
+| Payments (split, partial, due) | ✅ | – | ✅ | bKash/Nagad/card amounts are typed in by the cashier and stay `unverified`; there is no gateway |
+| Due collection | ✅ | – | ✅ | Payments reduce the customer's balance; they are not allocated to individual invoices |
+| Invoices (page, PDF, QR) | ✅ | – | 🟡 | Public page, PDF (A4/80mm/58mm), QR. The app shares a link and opens the PDF in the browser; it does not attach the PDF file. Printing is Phase 7 |
+| Dashboard | ✅ | ✅ | ✅ | Shop: today's sales, profit, orders, items, customer due, stock alerts. Recent sales are in the API but not shown on the home screen |
 | Reports and exports | ⬜ | – | ⬜ | Phase 4 |
 | Offline sync | ⬜ | – | 🟡 | The app opens and stays signed in offline from a cached session; offline selling is Phase 5 |
 | Subscription management | 🟡 | ⬜ | ⬜ | Data model and enforcement exist; no renew/upgrade actions yet |
@@ -144,6 +144,56 @@ Legend: ✅ done and tested · 🟡 partly done · ⬜ not started · – not ap
 - App screen to browse and import from the global catalogue.
 - App screens for stock movement history, a vendor's products and purchases, custom units, brand management, sub-categories.
 
-**Next: Phase 3 — POS, payments, dues, invoices**
+## Phase 3 record
 
-Customers and phone lookup, the sale transaction (server-computed totals, split and partial payment, the due-requires-customer rule, stock deduction, ledger, invoice number and public token), voiding a sale, due collection, customer ledger, shop dashboard figures, invoice page with PDF and QR, and the POS, cart and checkout screens with continuous scanning.
+**Automated checks at the end of Phase 3**
+
+| Suite | Result |
+|---|---|
+| `backend`: `php artisan test` | 203 tests, all passing (MariaDB 10.11) |
+| `mobile`: `flutter analyze` | no issues |
+| `mobile`: `flutter test` | 149 tests, all passing |
+
+**Checked by hand**
+
+- A real sale over HTTP in Bangla with decimal quantity, line discount, sale discount, charge, cash with change, bKash and a due to a new customer: every figure added up.
+- The PDF invoice was rendered to images at A4, 80mm and 58mm: Bengali conjuncts are shaped correctly, the QR code is present, each receipt fits one page.
+- The public invoice page in a phone-sized browser: no cookies set, `noindex` header, no horizontal overflow, phone masked.
+- The app's counter, cart, checkout, invoice, home and customer screens rendered to images in Bangla.
+
+**A bug the tests caught**
+
+The multi-process sale test deadlocked: when several first sales of a shop arrived together, creating the invoice counter row collided. Fixed by taking one per-shop lock first (`ShopLock`) in sales, voids and product creation, with deadlock retries as a second line of defence. The test now passes repeatedly.
+
+**Not verified**
+
+- Still no run on an Android device or emulator: camera scanning (single and continuous), the share sheet, opening the PDF in a browser and the QR rendering on a real screen.
+- The QR code on the invoice has not been scanned with a phone to confirm it opens the page.
+- MySQL 8 itself (tests ran on MariaDB 10.11). The `CHECK` constraints need MySQL 8.0.16 or later.
+
+**Decisions made during Phase 3**
+
+- The app must send `grand_total` and `due_amount`; the server compares them with its own. A sale never becomes a due sale by accident because a payment was short.
+- A due is never a payment row. It is `sales.due_amount` plus a ledger debit.
+- Due collections reduce the customer's balance as a whole; they are not tied to particular invoices.
+- Voiding after the due was already collected leaves the customer in credit (a negative balance), shown in the app as an advance.
+- At checkout the name typed for an existing phone number does not rename that customer.
+- A deleted customer's phone number, used again, restores the old record with its history.
+- Sales in one shop are processed one at a time (per-shop lock). Different shops do not wait for each other.
+- Free plan: 300 sales a month (placeholder), counted in the shop's time zone.
+- The app does its cart arithmetic in whole paisa and thousandths of a unit, using the same half-up rule as the server.
+- Checkout pre-fills cash with the full total, so a normal cash sale is one tap.
+- Public invoice routes run without sessions or cookies.
+- `mpdf/mpdf` and `mpdf/qrcode` were added for PDFs; Hind Siliguri is bundled for Bengali text.
+
+**Left for later from Phase 3's scope**
+
+- Bluetooth thermal printing (Phase 7). The 58mm/80mm PDFs exist, but nothing sends them to a printer.
+- Sharing the PDF as a file attachment; today the app shares a link.
+- Partial returns, line-level discounts and price override in the app (the API supports line discounts and owner price override).
+- Filters on the app's sales history; ledger paging; choosing the PDF width in the app.
+- Offline invoices and offline sales (Phase 5).
+
+**Next: Phase 4 — reports**
+
+Summary (sales, orders, items, paid, due, discounts, gross profit), sales by payment method including due collections, best sellers, low stock, sales history and dues, date ranges in the shop's time zone, Excel/CSV/PDF export, and the report screens in the app.

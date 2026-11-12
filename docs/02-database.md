@@ -324,11 +324,10 @@ Index `(shop_id, customer_id, id)`.
 | sold_at | timestamp | when it happened (device clock for offline) |
 | received_at | timestamp | when the server stored it |
 | voided_at, voided_by, void_reason | null | |
-| device_id | FK null | |
 | created_by | FK users | |
 | timestamps | | |
 
-CHECK: `grand_total = subtotal - discount_amount + additional_charge`, `grand_total = paid_amount + due_amount`, all amounts `>= 0`.
+CHECK constraint `sales_totals_check`: `grand_total = subtotal - discount_amount + additional_charge`, `grand_total = paid_amount + due_amount`, all amounts `>= 0`. Also `payments.amount > 0` and non-negative ledger amounts.
 Indexes: `(shop_id, sold_at)`, `(shop_id, customer_id)`, `(shop_id, status, sold_at)`.
 
 #### `sale_items` (T)
@@ -374,11 +373,11 @@ Index `(shop_id, sale_id)`, `(shop_id, product_variant_id, created_at)` for best
 Index `(shop_id, paid_at)`, `(shop_id, method, paid_at)`, `(shop_id, customer_id)`.
 
 #### `invoices` (T)
-`id`, `shop_id`, `sale_id` **unique**, `invoice_no`, `public_token` char(43) **unique** (32 random bytes, base64url), `shop_snapshot` json (name, address, phone, logo at time of sale), `pdf_path` null, `issued_at`, timestamps.
-The public route looks up by `public_token` only.
+`id`, `shop_id`, `sale_id` **unique**, `invoice_no`, `public_token` char(43) **unique** (32 random bytes, base64url), `shop_snapshot` json (name, address, phone, logo and footer at time of sale), `issued_at`, timestamps.
+The public route looks up by `public_token` only. PDFs are rendered on request, not stored.
 
 #### `shop_sequences` (T)
-`shop_id`, `key` (`invoice`), `next_value` bigint. Primary key `(shop_id, key)`. Locked `FOR UPDATE` when issuing a number.
+`shop_id`, `key` (`invoice`), `next_value` bigint. Primary key `(shop_id, key)`. Read and advanced inside the sale transaction while the shop's row in `shops` is locked (see `ShopLock`), so numbers are gap-free and never repeat.
 
 ### Purchases and expenses (schema now, UI in later phases)
 

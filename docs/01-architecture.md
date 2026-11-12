@@ -174,7 +174,7 @@ The app receives the resolved entitlements from `GET /me` so it can hide what is
 One service, `CreateSale`, one transaction:
 
 1. **Idempotency.** Look up `(shop_id, client_uuid)`. If the sale exists, return it with `200` and do nothing else. A unique index backs this up against races.
-2. **Lock** the `product_variants` rows involved with `SELECT … FOR UPDATE`, **ordered by id** (consistent order prevents deadlocks).
+2. **Lock.** First the shop's own row (`ShopLock`): sales, voids and product creation in one shop then run one after another, which rules out deadlocks and duplicate invoice numbers. Then the `product_variants` rows involved, `SELECT … FOR UPDATE`, ordered by id. Other shops are not affected.
 3. **Price and cost.** Read price and current purchase cost from the locked rows. Apply a client price only with `pos.price_override`.
 4. **Stock check.** Reject if any line exceeds stock, unless the shop allows negative stock.
 5. **Totals**, computed by the server:
@@ -186,7 +186,7 @@ One service, `CreateSale`, one transaction:
 7. **Due rule.** If `due > 0`: a customer is mandatory. Either `customer_id` (must belong to this shop) or `customer {name, phone}` (find by phone in this shop, otherwise create). Lock the customer row.
    If `due = 0`: no customer is required.
 8. **Write** `sales`, `sale_items` (with name, price and **cost snapshot**), `payments`, `stock_movements` (with `balance_after`), decrement variant stock, `customer_ledgers` entries, `invoices` row with public token.
-9. **Invoice number** comes from `shop_sequences` (`SELECT … FOR UPDATE`), so numbers are gap-free per shop and never collide.
+9. **Invoice number** comes from `shop_sequences`, read and advanced under the shop lock, so numbers are gap-free per shop and never collide.
 10. Commit. PDF generation and notifications happen afterwards on the queue.
 
 If any step fails the whole sale rolls back: there is never a sale without its stock movement, or a due without its ledger entry.

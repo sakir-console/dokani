@@ -66,11 +66,14 @@ Status column: ✅ implemented in Phase 1, otherwise the phase in which it is de
 | PATCH | `/shop/settings` | `allow_negative_stock, low_stock_threshold, receipt_width, invoice_footer, …` | ✅ |
 | GET | `/meta` | public: shop types, payment methods, API version, minimum app version | ✅ |
 
-## Dashboard — Phase 3
+## Dashboard — ✅ implemented in Phase 3
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/dashboard` | today's sales, profit, orders, units sold, total products, low/out-of-stock counts, total customer due, recent sales |
+| GET | `/dashboard` | `today` (`sales, profit, orders, items_sold, paid, due`), `stock`, `total_customer_due`, `customers_with_due`, `recent_sales` |
+
+"Today" is the shop's own calendar day (its time zone). Cancelled sales are excluded.
+`profit` = items after discounts − their cost at the time of sale, plus additional charges when the shop counts them as income. It is omitted for roles without `reports.view`.
 
 ## Catalogue — ✅ implemented in Phase 2
 
@@ -146,36 +149,39 @@ Writes need `vendors.manage`.
 
 Stock in, out and adjust are part of every plan and need `inventory.manage`. Only the full movement history is a paid module.
 
-## Customers and dues — Phase 3
+## Customers and dues — ✅ implemented in Phase 3 (module `customers`)
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/customers` | `q` (name or phone), `has_due=1` |
-| POST | `/customers` | `name, phone, address?, notes?, opening_due?` |
-| GET | `/customers/lookup?phone=` | exact match inside this shop → customer or 404. Used at checkout |
-| GET, PATCH, DELETE | `/customers/{id}` | delete refused while `current_due > 0` |
-| GET | `/customers/{id}/ledger` | paged ledger with running balance |
-| GET | `/customers/{id}/sales` | purchase history |
-| GET | `/customers/{id}/payments` | payment history |
-| POST | `/customers/{id}/collect-due` | `client_uuid, amount, method, transaction_id?, reference?, paid_at?` — rejects amounts above the outstanding due |
+| GET | `/customers` | `q` (name or phone), `has_due=1` (largest due first) |
+| POST | `/customers` | `name, phone, address?, notes?, credit_limit?, opening_due?`. `422 CUSTOMER_EXISTS` for a phone already in this shop |
+| GET | `/customers/lookup?phone=` | Exact match inside this shop → customer, or `404 CUSTOMER_NOT_FOUND`. Used at checkout |
+| GET, PATCH, DELETE | `/customers/{id}` | The balance cannot be edited. Delete is refused while the balance is not zero (`409 CUSTOMER_HAS_DUE`) |
+| GET | `/customers/{id}/ledger` | Newest first, each entry with `debit`, `credit`, `balance_after` |
+| GET | `/customers/{id}/sales` | Purchase history |
+| GET | `/customers/{id}/payments` | Payment history |
+| POST | `/customers/{id}/collect-due` | `client_uuid, amount, method, transaction_id?, reference?`. More than is owed → `422 AMOUNT_EXCEEDS_DUE`. The same `client_uuid` again returns the first result with `200` |
 
-## Sales / POS — Phase 3
+Writes need `customers.manage`; collecting needs `due.collect`.
+
+## Sales / POS — ✅ implemented in Phase 3 (module `pos`)
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/pos/catalog` | lightweight product grid for the POS: variants with price, stock, image thumbnail; `q, category_id` |
-| POST | `/sales` | create a sale — see below |
-| GET | `/sales` | filters: `from, to, customer_id, status, payment_method, q` (invoice no) |
-| GET | `/sales/{id}` | items, payments, invoice link |
-| POST | `/sales/{id}/void` | `reason` — owner/manager; restores stock, reverses ledger |
-| GET | `/sales/{id}/invoice.pdf` | PDF download, `?width=a4|80|58` |
+| POST | `/sales` | Create a sale — see below. Needs `pos.sell` |
+| GET | `/sales` | Filters: `from, to` (days in the shop's time zone), `customer_id, status, payment_method, has_due, q` (invoice no) |
+| GET | `/sales/{id}` | Items, payments, customer, `invoice_url`. `total_cost` and `gross_profit` only for roles with `reports.view` |
+| POST | `/sales/{id}/void` | `reason`. Needs `sales.void`. Stock returns, the due is taken off the ledger, payments are recorded as refunded. `409 SALE_ALREADY_VOIDED` |
+| GET | `/sales/{id}/invoice.pdf` | `?width=a4|80|58` |
+
+The product list for the counter is `GET /products`; there is no separate POS catalogue endpoint.
 
 ### `POST /sales`
 
 ```json
 {
-  "client_uuid": "8f6c1c0e-…",
-  "sold_at": "2026-11-11T10:15:00+06:00",
+  "client_uuid": "8f6c1c0e-1111-4222-8333-444455556666",
+  "sold_at": "2026-11-12T10:15:00+06:00",
   "items": [
     { "variant_id": 12, "quantity": "2", "unit_price": "600.00", "discount_amount": "0.00" }
   ],
@@ -183,7 +189,7 @@ Stock in, out and adjust are part of every plan and need `inventory.manage`. Onl
   "additional_charge": "20.00",
   "grand_total": "1120.00",
   "payments": [
-    { "method": "cash",  "amount": "500.00", "received_amount": "500.00" },
+    { "method": "cash",  "amount": "500.00", "received_amount": "1000.00" },
     { "method": "bkash", "amount": "200.00", "transaction_id": "9XK2L0" }
   ],
   "due_amount": "420.00",
@@ -193,24 +199,29 @@ Stock in, out and adjust are part of every plan and need `inventory.manage`. Onl
 }
 ```
 
-Server behaviour:
+`client_uuid`, `items`, `grand_total` and `due_amount` are required. Payment methods: `cash, bkash, nagad, bank, card, other`.
 
-1. Same `client_uuid` again → returns the stored sale, `200`, nothing else changes.
-2. Recomputes every total from the items. `grand_total` and `due_amount` from the client are only cross-checked; a mismatch is `422 TOTALS_MISMATCH`.
-3. `Σ payments.amount + due_amount` must equal `grand_total`, else `422 PAYMENT_MISMATCH`.
-4. For cash, `received_amount ≥ amount`; `change = received_amount − amount`.
-5. `due_amount > 0` without `customer_id` or `customer {name, phone}` → `422 DUE_REQUIRES_CUSTOMER`.
-6. `customer_id` from another shop → `422`.
-7. Insufficient stock → `409 INSUFFICIENT_STOCK` with the offending variants.
-8. Response `201`: the sale with `invoice_no`, `invoice_url` (public QR link), items, payments, customer and new due balance.
+Server behaviour, in order:
 
-## Public invoice — Phase 3 (no auth, rate-limited)
+1. The same `client_uuid` again → the stored sale, `200`, nothing else changes. A new sale is `201`.
+2. Prices and costs are read from the database. A `unit_price` that differs from the catalogue price needs `pos.price_override` (otherwise `403 PRICE_OVERRIDE_NOT_ALLOWED`) and is audited.
+3. Stock is checked across the whole cart: `409 INSUFFICIENT_STOCK` with `errors` naming each short line, unless the shop allows negative stock.
+4. Totals are computed by the server: each line is `round(unit_price × quantity, 2) − line discount`, half-up; `grand_total = subtotal − discount + additional_charge`. A `grand_total` that disagrees is `422 TOTALS_MISMATCH`, with the server's figure in `errors.grand_total`.
+5. `Σ payments.amount + due_amount` must equal `grand_total` exactly, else `422 PAYMENT_MISMATCH`. For cash, `received_amount ≥ amount`; the difference is change and is not a payment.
+6. `due_amount > 0` needs `customer_id` or `customer.phone` (`422 DUE_REQUIRES_CUSTOMER`). The customer is found by phone in this shop, or created — a new customer needs `customer.name` (`422 CUSTOMER_NAME_REQUIRED`). A fully paid sale needs no customer.
+7. A customer's `credit_limit`, when set, is enforced (`422 CREDIT_LIMIT_EXCEEDED`). The plan's monthly sales limit is enforced (`403 PLAN_LIMIT_REACHED`).
+8. Mobile-money and card payments are stored with `verification: "unverified"`. Nothing in the system marks them verified without a gateway.
+
+## Public invoice — ✅ implemented in Phase 3 (no login, 30 requests a minute per IP)
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/i/{token}` (web route) | read-only HTML invoice |
-| GET | `/i/{token}/pdf` | PDF |
-| GET | `/api/v1/public/invoices/{token}` | JSON, same data, customer phone masked |
+| GET | `/i/{token}` | Read-only HTML invoice. No session, no cookies, `noindex` |
+| GET | `/i/{token}/pdf` | The same invoice as PDF |
+| GET | `/api/v1/public/invoices/{token}` | JSON with the same data |
+
+The token is 32 random bytes (43 base64url characters). Database ids and invoice numbers do not work in its place.
+The public invoice contains no ids, no cost, no transaction ids, and the customer's phone only masked (`018*****678`).
 
 ## Reports — Phase 4
 
