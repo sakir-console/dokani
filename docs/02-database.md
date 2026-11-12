@@ -33,7 +33,6 @@ erDiagram
     SUBSCRIPTIONS ||--o{ SUBSCRIPTION_PAYMENTS : "paid by"
 
     GLOBAL_CATEGORIES ||--o{ GLOBAL_PRODUCTS : groups
-    GLOBAL_BRANDS ||--o{ GLOBAL_PRODUCTS : brands
     GLOBAL_PRODUCTS ||--o{ GLOBAL_PRODUCT_VARIANTS : has
     GLOBAL_PRODUCTS ||--o{ PRODUCTS : "imported as"
 
@@ -49,6 +48,7 @@ erDiagram
     BRANDS ||--o{ PRODUCTS : brands
     UNITS ||--o{ PRODUCTS : "measured in"
     VENDORS ||--o{ PRODUCTS : supplies
+    VENDORS ||--o{ STOCK_MOVEMENTS : "received from"
     PRODUCTS ||--|{ PRODUCT_VARIANTS : has
     PRODUCT_VARIANTS ||--o{ BARCODES : "identified by"
     PRODUCT_VARIANTS ||--o{ STOCK_MOVEMENTS : moves
@@ -174,10 +174,9 @@ Index `(shop_id, status)`, `(ends_at)`. One `active` row per shop at a time (enf
 
 ### Global catalogue (managed by admin)
 
-- `global_categories` — `id`, `parent_id` null, `name`, `name_bn` null, `sort_order`, timestamps.
-- `global_brands` — `id`, `name`, timestamps.
-- `global_products` — `id`, `global_category_id` null, `global_brand_id` null, `name`, `name_bn` null, `description` null, `default_unit` varchar(20), `image_path` null, `barcode` varchar(64) null (index), `is_active`, timestamps, deleted_at.
-- `global_product_variants` — `id`, `global_product_id`, `name`, `attributes` json null, `barcode` null, `sort_order`, timestamps.
+- `global_categories` — `id`, `name`, `name_bn` null, `sort_order`, timestamps.
+- `global_products` — `id`, `global_category_id` null, `name`, `name_bn` null, `brand` varchar(100) null (plain text; becomes a shop brand on import), `description` null, `default_unit` (name of a built-in unit), `image_path` null, `barcode` varchar(64) null (index), `is_active`, timestamps, deleted_at.
+- `global_product_variants` — `id`, `global_product_id`, `name`, `options` json null, `barcode` null, `sort_order`, timestamps.
 
 Global rows hold **no prices and no stock**. Importing copies them into the shop's `products`/`product_variants` and stores `products.global_product_id` as a reference only. Later edits by the shop never touch the global row, and vice versa.
 
@@ -191,7 +190,8 @@ Names are unique per shop and parent among non-deleted rows; this is enforced in
 `id`, `shop_id`, `name`, timestamps, deleted_at. Unique `(shop_id, name)`.
 
 #### `units` (T + system)
-`id`, `shop_id` **null for built-in units**, `name`, `short_name`, `allows_decimal` boolean, timestamps.
+`id`, `shop_id` **null for built-in units**, `name`, `name_bn` null, `short_name`, `allows_decimal` boolean, timestamps.
+A shop sees the built-in rows plus its own (`ShopOrSystemScope`); only its own can be changed.
 Built-ins: Piece, Kilogram, Gram, Liter, Milliliter, Packet, Box, Dozen, Meter, Feet, Bottle, Pair, Carton. Shops add custom rows with their own `shop_id`.
 
 #### `vendors` (T)
@@ -206,7 +206,7 @@ Built-ins: Piece, Kilogram, Gram, Liter, Milliliter, Packet, Box, Dozen, Meter, 
 | category_id | FK null | |
 | brand_id | FK null | |
 | unit_id | FK | |
-| vendor_id | FK null | primary vendor |
+| vendor_id | FK null | the vendor this product is bought from; one vendor supplies many products |
 | name | varchar(190) | |
 | description | text null | |
 | image_path | varchar(255) null | |
@@ -218,9 +218,6 @@ Built-ins: Piece, Kilogram, Gram, Liter, Milliliter, Packet, Box, Dozen, Meter, 
 
 Indexes: `(shop_id, name)`, `(shop_id, category_id)`, `(shop_id, brand_id)`, `(shop_id, updated_at)` for delta sync; `FULLTEXT(name)`.
 
-#### `product_vendor` (T pivot) — a product can have several vendors
-`shop_id`, `product_id`, `vendor_id`. Primary key `(product_id, vendor_id)`.
-
 #### `product_variants` (T) — the sellable, stock-holding unit
 | Column | Type | Notes |
 |---|---|---|
@@ -228,8 +225,8 @@ Indexes: `(shop_id, name)`, `(shop_id, category_id)`, `(shop_id, brand_id)`, `(s
 | shop_id | FK | |
 | product_id | FK | |
 | name | varchar(120) null | `M`, `500ml`, `128GB`; null for the default variant |
-| attributes | json null | `{"size":"M","color":"Red"}` |
-| sku | varchar(64) null | unique `(shop_id, sku)` |
+| options | json null | `{"size":"M","color":"Red"}`. Exposed by the API as `attributes`; the column is named `options` because Eloquent reserves `attributes` |
+| sku | varchar(64) null | indexed `(shop_id, sku)`; not unique |
 | purchase_price | decimal(14,2) | current cost |
 | selling_price | decimal(14,2) | |
 | stock_quantity | decimal(14,3) | cached balance; changed only by the stock service |
@@ -240,7 +237,7 @@ Indexes: `(shop_id, name)`, `(shop_id, category_id)`, `(shop_id, brand_id)`, `(s
 Indexes: `(shop_id, product_id)`, `(shop_id, stock_quantity)`, `(shop_id, updated_at)`.
 
 #### `barcodes` (T)
-`id`, `shop_id`, `product_variant_id`, `code` varchar(64), `type` (`ean13`, `upc`, `code128`, `qr`, `custom`) null, `is_primary`, timestamps.
+`id`, `shop_id`, `product_variant_id`, `code` varchar(64), timestamps. Rows are hard-deleted with their variant, so a code can be reused.
 **Unique `(shop_id, code)`** — one code resolves to exactly one variant in a shop; a variant may have several codes.
 
 #### `stock_movements` (T, append-only)
@@ -253,6 +250,7 @@ Indexes: `(shop_id, product_id)`, `(shop_id, stock_quantity)`, `(shop_id, update
 | quantity | decimal(14,3) | signed: negative for outflow |
 | balance_after | decimal(14,3) | |
 | unit_cost | decimal(14,2) null | |
+| vendor_id | FK null | set on stock-in; gives a vendor's purchase history |
 | reference_type / reference_id | morph null | sale, purchase, … |
 | note | varchar(255) null | |
 | created_by | FK users null | |
@@ -411,7 +409,7 @@ Index `(shop_id, created_at)`, `(subject_type, subject_id)`, `(action)`.
 ## Table creation order (migrations)
 
 1. Phase 1 — `users`, `admins`, `personal_access_tokens`, `shops`, `shop_users`, `otp_codes`, `modules`, `plans`, `plan_module`, `shop_module_overrides`, `subscriptions`, `subscription_payments`, `audit_logs`, infrastructure tables
-2. Phase 2 — `units`, `categories`, `brands`, `vendors`, `global_*`, `products`, `product_vendor`, `product_variants`, `barcodes`, `stock_movements`
+2. Phase 2 — `units`, `brands`, `vendors`, `global_categories`, `global_products`, `global_product_variants`, `products`, `product_variants`, `barcodes`, `stock_movements` (`categories` was created in Phase 1)
 3. Phase 3 — `customers`, `shop_sequences`, `sales`, `sale_items`, `payments`, `customer_ledgers`, `invoices`
 4. Phase 5 — `devices`, `notifications`
 5. Later — `purchases`, `purchase_items`, `expense_categories`, `expenses`

@@ -23,7 +23,7 @@ A multi-tenant shop management platform: a Flutter app for shop owners (products
 
 ## Status
 
-Phase 1 (foundation) is complete: authentication, multi-tenant isolation, plans and modules, the admin panel shell and the app's sign-in flow.
-Products, POS, dues, invoices, reports and offline selling are not built yet.
+Phases 1 and 2 are complete: authentication, multi-tenant isolation, plans and modules, the admin panel (shops, global catalogue), and in the app sign-in, products with variants, barcode scanning, stock and vendors.
+POS, payments, dues, invoices, reports and offline selling are not built yet.
 
 The project is **not production-ready**. The status table in [`docs/05-roadmap.md`](docs/05-roadmap.md) says exactly what is built and tested.

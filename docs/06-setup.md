@@ -84,6 +84,12 @@ Tests use the `dokani_test` database (see `phpunit.xml`) and reset it themselves
 | `tests/Feature/Api/EntitlementsTest.php` | Plan modules and limits; fallback to Free on expiry; per-shop overrides; core modules cannot be disabled; the module middleware |
 | `tests/Feature/Api/ShopProfileTest.php` | Profile and settings updates; protected fields cannot be mass-assigned; logo is re-encoded and resized; non-images are rejected |
 | `tests/Feature/Api/CategoryTest.php` | CRUD, unique names per parent, no cycles |
+| `tests/Feature/Api/ProductTest.php` | Simple and variant products; opening stock as a movement; variant sync; search and stock filters; image; plan product limit; cashier read-only; barcode lookup and uniqueness, including the database index |
+| `tests/Feature/Api/StockTest.php` | Stock in/out/adjust, running balance, cost update, whole-unit rule, negative-stock setting, history is append-only |
+| `tests/Feature/Api/StockConcurrencyTest.php` | 12 separate processes withdraw from a variant holding 5: exactly 5 succeed, stock ends at 0. Fails if the row lock is removed. Needs the `pcntl` extension (skipped without it) |
+| `tests/Feature/Api/CatalogSupportTest.php` | Units, brands, vendors; vendor module gating; deleting a brand/vendor/category keeps its products |
+| `tests/Feature/Api/GlobalCatalogTest.php` | Browse, search, import with the shop's own prices, independence of the copy, per-shop `already_imported`, product limit |
+| `tests/Feature/Admin/GlobalCatalogAdminTest.php` | Admin catalogue screens: access, add with image and variants, validation, edit, hide, delete |
 | `tests/Feature/Admin/AdminPanelTest.php` | Admin guard is separate from shop users; login lockout; dashboard numbers; search and filters; suspend/restore is audited and takes effect on the API immediately |
 
 ### Trying the API by hand
@@ -120,6 +126,8 @@ flutter run --dart-define=API_BASE_URL=https://your-server.example/api/v1
 For a phone on the same Wi-Fi as a development machine, start the backend with `php artisan serve --host=0.0.0.0` and use `http://<computer-ip>:8000/api/v1`.
 Plain `http` is allowed in debug builds only; release builds require `https`.
 
+**Barcode scanner.** The scanner uses the `mobile_scanner` package (CameraX + ML Kit, model bundled in the app so it works offline). It needs a real device: the automated tests replace the camera with a fixed result, so scanning speed, autofocus and low-light behaviour are untested until the app runs on phones.
+
 Render the main screens to PNG files without a phone (written to `mobile/tool/screenshots/`):
 
 ```bash
@@ -134,4 +142,8 @@ FLUTTER_ROOT=$(dirname $(dirname $(which flutter))) flutter test tool/screenshot
 | `test/features/auth/session_test.dart` | `/me` parsing and the cache round trip |
 | `test/features/auth/auth_controller_test.dart` | Session restore from cache, staying signed in offline, sign-out on a rejected token, login, logout |
 | `test/features/auth/router_redirect_test.dart` | Who can reach which screen |
+| `test/core/formatters_test.dart` | Number input (including Bangla digits) and money/quantity display |
+| `test/features/catalog/models_test.dart` | Product JSON parsing; what a product draft sends |
+| `test/features/catalog/product_list_controller_test.dart` | Search, filters, paging, retry after failure, outdated responses ignored |
+| `test/features/catalog/*_test.dart` (screens) | Products list, product form (validation, variants, scan, inline category), product page and stock sheets, categories, vendors, role and plan rules |
 | `test/features/screens/*.dart` | The real app with a fake server: Bangla by default, language switch, form validation, login, registration, password reset, home, settings, shop editing, role and suspension rules |

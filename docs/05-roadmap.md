@@ -56,13 +56,13 @@ Legend: ✅ done and tested · 🟡 partly done · ⬜ not started · – not ap
 | Shop profile and settings | ✅ | 🟡 | 🟡 | Admin: view, activate, deactivate, suspend. Mobile: profile editing; logo only at registration; settings screen not built |
 | Plans / modules / entitlements | ✅ | ⬜ | 🟡 | Resolution and enforcement done. Admin cannot edit plans yet (Phase 6). Mobile shows plan and modules |
 | Roles and permissions | ✅ | – | 🟡 | Owner, manager, cashier enforced by the API; no screen to add staff yet |
-| Categories | ✅ | – | ⬜ | API done; screen comes with products |
-| Brands, units | ⬜ | – | ⬜ | Phase 2 |
-| Products and variants | ⬜ | – | ⬜ | Phase 2 |
-| Barcodes and scanner | ⬜ | – | ⬜ | Phase 2 |
-| Vendors | ⬜ | – | ⬜ | Phase 2 |
-| Global catalogue | ⬜ | ⬜ | ⬜ | Phase 2 / 6 |
-| Inventory | ⬜ | – | ⬜ | Phase 2 |
+| Categories | ✅ | – | ✅ | Sub-categories exist in the API; the app manages one level |
+| Brands, units | ✅ | – | 🟡 | App picks units and creates brands from the product form; no screen to add custom units or rename brands |
+| Products and variants | ✅ | – | ✅ | Variant attributes (size/colour as separate fields) are stored by the API but the app only edits the variant name |
+| Barcodes and scanner | ✅ | – | 🟡 | Lookup, uniqueness, scan-to-find and scan-to-fill work. The camera itself is untested on real phones. Continuous scanning into a cart is Phase 3; offline lookup is Phase 5 |
+| Vendors | ✅ | – | 🟡 | CRUD, search, picker in the product form. Vendor's product list and purchase history are API-only so far |
+| Global catalogue | ✅ | ✅ | ⬜ | Admin can manage it and the import API works; the app has no browse/import screen yet |
+| Inventory | ✅ | – | 🟡 | Stock in/out/correct and low/out-of-stock alerts in the app. Movement history is API-only |
 | Customers and ledger | ⬜ | – | ⬜ | Phase 3 |
 | POS and sales | ⬜ | – | ⬜ | Phase 3 |
 | Payments (split, partial, due) | ⬜ | – | ⬜ | Phase 3 |
@@ -105,6 +105,45 @@ Legend: ✅ done and tested · 🟡 partly done · ⬜ not started · – not ap
 - The `offline` module is a core module (in every plan), because offline selling is treated as essential.
 - Plan prices and limits in the seeder (Free 50 products, Basic ৳299, Standard ৳599, Premium ৳999) are placeholders to be changed.
 
-**Next: Phase 2 — catalogue and inventory**
+## Phase 2 record
 
-Units, brands, vendors, products with variants, barcodes and lookup, product images, the plan's product limit, stock in/out/adjust with movement history, low-stock alerts, global catalogue import, and the product, category and scanner screens in the app.
+**Automated checks at the end of Phase 2**
+
+| Suite | Result |
+|---|---|
+| `backend`: `php artisan test` | 147 tests, all passing (MariaDB 10.11) |
+| `mobile`: `flutter analyze` | no issues |
+| `mobile`: `flutter test` | 104 tests, all passing |
+
+**Checked by hand**
+
+- The catalogue API over real HTTP: create a product in Bangla with a decimal quantity, barcode lookup, refused over-withdrawal, stock in, summary, Bangla error for a module outside the plan.
+- The admin catalogue screens in a real browser: add a product with a Bangla name, a new category and two variants.
+- The app's catalogue screens rendered to images in Bangla: home, product list, product page, stock sheet, product form.
+- The concurrency test was run with the row lock removed to confirm it fails (all 12 workers oversold), then restored.
+
+**Not verified**
+
+- Still no run on an Android device or emulator. The scanner screen in particular has only been compiled and analysed; camera start-up time, autofocus and detection on low-end phones are unknown.
+- The product photo picker and upload from a real phone.
+
+**Decisions made during Phase 2**
+
+- A product has one vendor (`products.vendor_id`); the `product_vendor` pivot from the original design was dropped. One vendor still supplies many products.
+- Variants are edited as part of the product (one request carries the complete set) rather than through separate variant endpoints.
+- Receiving, removing and counting stock is in every plan. Only the full movement history is the paid `inventory` module; otherwise a free shop could never restock.
+- Stock-in with a cost sets the variant's purchase price to that latest cost. There is no weighted-average costing.
+- A variant that still has stock cannot be removed; its stock must be corrected to zero first.
+- Deleting a category, brand or vendor keeps its products and unlinks them.
+- The JSON column for variant attributes is named `options`, because Eloquent reserves `attributes`. The API field is still `attributes`.
+- `brick/math` 1.0 is a direct dependency; all money and quantity arithmetic goes through `App\Support\Dec`.
+- Global catalogue brands are plain text on the product instead of a separate table.
+
+**Left for later from Phase 2's scope**
+
+- App screen to browse and import from the global catalogue.
+- App screens for stock movement history, a vendor's products and purchases, custom units, brand management, sub-categories.
+
+**Next: Phase 3 — POS, payments, dues, invoices**
+
+Customers and phone lookup, the sale transaction (server-computed totals, split and partial payment, the due-requires-customer rule, stock deduction, ledger, invoice number and public token), voiding a sale, due collection, customer ledger, shop dashboard figures, invoice page with PDF and QR, and the POS, cart and checkout screens with continuous scanning.

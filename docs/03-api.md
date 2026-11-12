@@ -72,44 +72,79 @@ Status column: ✅ implemented in Phase 1, otherwise the phase in which it is de
 |---|---|---|
 | GET | `/dashboard` | today's sales, profit, orders, units sold, total products, low/out-of-stock counts, total customer due, recent sales |
 
-## Catalogue — Phase 2
+## Catalogue — ✅ implemented in Phase 2
+
+Reads need the `products` module (in every plan). Writes also need the `catalog.manage` permission (owner, manager).
 
 | Method | Path | Notes |
 |---|---|---|
-| GET, POST | `/categories` | ✅ implemented in Phase 1 |
-| GET, PATCH, DELETE | `/categories/{id}` | ✅ implemented in Phase 1; delete is refused while sub-categories exist |
-| GET, POST | `/brands` | |
-| PATCH, DELETE | `/brands/{id}` | |
-| GET, POST | `/units` | built-in units + the shop's custom units |
-| PATCH, DELETE | `/units/{id}` | custom units only |
-| GET | `/products` | filters: `q, category_id, brand_id, vendor_id, stock=low|out|in, barcode` |
-| POST | `/products` | product + `variants[]` (each with prices, opening stock, sku, barcodes[]); checks plan product limit |
-| GET | `/products/{id}` | with variants, barcodes, vendors |
-| PATCH | `/products/{id}` | |
-| DELETE | `/products/{id}` | soft delete |
-| POST | `/products/{id}/image` | multipart |
-| POST | `/products/{id}/variants` | |
-| PATCH, DELETE | `/variants/{id}` | |
-| POST | `/variants/{id}/barcodes` | `code, type?` |
-| DELETE | `/barcodes/{id}` | |
-| GET | `/barcodes/lookup?code=` | → variant + product, or 404 `BARCODE_NOT_FOUND` |
-| GET, POST | `/vendors` | `q` search |
-| GET, PATCH, DELETE | `/vendors/{id}` | |
+| GET, POST | `/categories` | |
+| GET, PATCH, DELETE | `/categories/{id}` | Delete is refused while sub-categories exist; products become uncategorised |
+| GET, POST | `/brands` | `q` search |
+| PATCH, DELETE | `/brands/{id}` | Deleting leaves products without a brand |
+| GET, POST | `/units` | Built-in units plus the shop's own |
+| PATCH, DELETE | `/units/{id}` | The shop's own units only; refused while products use it (`UNIT_IN_USE`) |
+| GET | `/products` | `q` (name, or exact barcode/SKU), `category_id`, `brand_id`, `vendor_id`, `stock=low|out|in`, `page`, `per_page` |
+| POST | `/products` | Product with `variants[]`; checks the plan's product limit (`PLAN_LIMIT_REACHED`) |
+| GET | `/products/{id}` | With variants, barcodes, category, brand, unit, vendor, stock status |
+| PATCH | `/products/{id}` | Product fields; if `variants[]` is sent it is the complete set (see below) |
+| DELETE | `/products/{id}` | Soft delete; frees its barcodes |
+| POST, DELETE | `/products/{id}/image` | multipart `image`; re-encoded to JPEG, max 800px |
+| GET | `/barcodes/lookup?code=` | → `{ code, variant_id, product }`, or 404 `BARCODE_NOT_FOUND` |
+
+### Product payload
+
+```json
+{
+  "name": "Polo T-shirt",
+  "unit_id": 1,
+  "category_id": 4, "brand_id": null, "vendor_id": null,
+  "storage_location": "Rack 3", "description": null, "low_stock_threshold": "5",
+  "has_variants": true,
+  "variants": [
+    { "name": "S", "attributes": {"size": "S"}, "purchase_price": "200", "selling_price": "350",
+      "stock_quantity": "4", "sku": "TS-S", "barcodes": ["8901234567890"] },
+    { "id": 12, "name": "M", "purchase_price": "210", "selling_price": "360", "barcodes": [] }
+  ]
+}
+```
+
+- A product without variants sends `has_variants: false` and exactly one variant with no name.
+- On update, variants with an `id` are changed, variants without are created, and existing variants left out are removed. A variant that still has stock cannot be removed (`409 VARIANT_HAS_STOCK`).
+- `stock_quantity` is the opening stock and only applies to variants being created. Existing stock changes only through the stock endpoints.
+- A barcode can belong to one variant per shop (`422 BARCODE_TAKEN`).
+- Quantities must be whole numbers unless the product's unit allows decimals (`422 QUANTITY_MUST_BE_WHOLE`).
+
+## Vendors — ✅ implemented in Phase 2 (module `vendors`)
+
+| Method | Path | Notes |
+|---|---|---|
+| GET, POST | `/vendors` | `q` searches name, phone and company |
+| GET, PATCH, DELETE | `/vendors/{id}` | Deleting leaves the vendor's products in place, unlinked |
 | GET | `/vendors/{id}/products` | |
-| GET | `/vendors/{id}/purchases` | |
-| GET | `/global-catalog/categories` | |
-| GET | `/global-catalog/products` | `q, category_id, barcode` |
-| POST | `/global-catalog/products/{id}/import` | `purchase_price, selling_price, stock, vendor_id?, variants[]?` → creates a shop product |
+| GET | `/vendors/{id}/purchases` | Stock-in entries that named this vendor, newest first |
 
-## Inventory — Phase 2/3
+Writes need `vendors.manage`.
+
+## Global catalogue — ✅ implemented in Phase 2 (module `global_catalog`)
 
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/stock/in` | `variant_id, quantity, unit_cost?, note?` |
-| POST | `/stock/out` | `variant_id, quantity, note` |
-| POST | `/stock/adjust` | `variant_id, new_quantity, note` — sets the counted quantity, records the difference |
-| GET | `/stock/movements` | filters: `variant_id, type, from, to` |
-| GET | `/stock/alerts` | low-stock and out-of-stock variants |
+| GET | `/global-catalog/categories` | |
+| GET | `/global-catalog/products` | `q`, `category_id`; each row has `already_imported` for the current shop |
+| POST | `/global-catalog/products/{id}/import` | `purchase_price?, selling_price?, stock_quantity?, vendor_id?, variants[]?` (per-variant prices by `global_variant_id`) → the new shop product |
+
+## Inventory — ✅ implemented in Phase 2
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/stock/in` | `variant_id, quantity, unit_cost?, vendor_id?, note?`. A cost, when given, becomes the variant's current purchase price |
+| POST | `/stock/out` | `variant_id, quantity, note` (a reason is required). `409 INSUFFICIENT_STOCK` unless the shop allows negative stock |
+| POST | `/stock/adjust` | `variant_id, new_quantity, note?` — sets the counted quantity and records the difference |
+| GET | `/stock/summary` | `total_products, low_stock_products, out_of_stock_products` |
+| GET | `/stock/movements` | Module `inventory`. Filters: `variant_id, product_id, type, from, to` |
+
+Stock in, out and adjust are part of every plan and need `inventory.manage`. Only the full movement history is a paid module.
 
 ## Customers and dues — Phase 3
 

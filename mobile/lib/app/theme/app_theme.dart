@@ -105,6 +105,9 @@ class AppTheme {
       listTileTheme: const ListTileThemeData(minVerticalPadding: 14),
       dividerTheme: const DividerThemeData(color: AppColors.border, space: 1, thickness: 1),
       snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
+      // Sheets and dialogs sit on plain white, like cards, instead of Material's tinted surface.
+      bottomSheetTheme: const BottomSheetThemeData(backgroundColor: Colors.white, surfaceTintColor: Colors.transparent),
+      dialogTheme: const DialogThemeData(backgroundColor: Colors.white, surfaceTintColor: Colors.transparent),
     );
   }
 }

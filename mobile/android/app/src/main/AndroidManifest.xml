@@ -2,6 +2,12 @@
     <!-- The app talks to the Dokani API. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- Barcode scanning. The CAMERA permission itself is declared by the scanner plugin.
+         Not required, so the app still installs on a device without a camera;
+         barcodes can be typed instead. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
+
     <application
         android:label="Dokani"
         android:name="${applicationName}"
