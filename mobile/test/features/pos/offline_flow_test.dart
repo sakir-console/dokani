@@ -364,6 +364,6 @@ void main() {
     expect(find.textContaining('অস্থায়ী নম্বর OFF-'), findsOneWidget);
 
     await backToHomeTop(tester);
-    expect(find.text('1টি রেকর্ড পাঠানো বাকি'), findsOneWidget);
+    expect(find.text('১টি রেকর্ড পাঠানো বাকি'), findsOneWidget);
   });
 }

@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:dokani/core/database/local_database.dart';
 import 'package:dokani/features/catalog/data/models.dart';
 import 'package:dokani/features/customers/data/customer_repository.dart';
 
@@ -19,6 +20,7 @@ import '../test/support/fakes.dart';
 import '../test/support/pump_app.dart';
 import '../test/support/report_fakes.dart';
 import '../test/support/sales_fakes.dart';
+import '../test/support/sync_fakes.dart';
 
 /// Tests draw text with a placeholder font unless real fonts are loaded.
 Future<void> loadFonts() async {
@@ -201,5 +203,63 @@ void main() {
     await tester.tap(find.byIcon(Icons.file_download_outlined));
     await tester.pumpAndSettle();
     await shoot(tester, 'reports_export_bn');
+  });
+
+  testWidgets('offline', (tester) async {
+    usePhone(tester);
+    final products = [
+      makeProduct(id: 1, name: 'লাক্স সাবান', variants: [makeVariant(id: 10, price: '45.00', stock: '12.000')]),
+      makeProduct(id: 2, name: 'মিনিকেট চাল', unit: kilogram, variants: [makeVariant(id: 20, price: '70.00', stock: '50.000')]),
+    ];
+    final catalog = FakeCatalogRepository(products: products);
+    final customers = FakeCustomerRepository();
+    final sales = FakeSalesRepository(catalog: catalog, customers: customers);
+    final api = FakeSyncApi(products: products, sales: sales);
+    final database = LocalDatabase.inMemory();
+    final session = testSession(shopName: 'রহিম স্টোর');
+
+    await pumpApp(
+      tester,
+      repository: FakeAuthRepository(token: 't', cached: session, serverSession: session),
+      catalog: catalog,
+      customers: customers,
+      sales: sales,
+      database: database,
+      syncApi: api,
+    );
+    await tester.pumpAndSettle(const Duration(milliseconds: 200));
+
+    // The internet goes away; a sale is made anyway.
+    api.online = false;
+    sales.offline = true;
+    await tapQuickAction(tester, 'new-sale');
+    await tester.pumpAndSettle(const Duration(milliseconds: 200));
+    await tester.tap(find.text('লাক্স সাবান'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 200));
+    await tester.tap(find.text('কার্ট দেখুন'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 200));
+    await tester.tap(find.textContaining('বিল করুন'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 200));
+    await tester.tap(find.widgetWithText(FilledButton, 'বিক্রি সম্পন্ন করুন'));
+    for (var i = 0; i < 4; i++) {
+      await tester.pumpAndSettle(const Duration(milliseconds: 300));
+    }
+    await shoot(tester, 'offline_invoice_bn');
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle(const Duration(milliseconds: 200));
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 800));
+    await tester.pumpAndSettle(const Duration(milliseconds: 200));
+    await shoot(tester, 'offline_home_bn');
+
+    await tester.tap(find.widgetWithText(TextButton, 'দেখুন'));
+    for (var i = 0; i < 3; i++) {
+      await tester.pumpAndSettle(const Duration(milliseconds: 200));
+    }
+    await shoot(tester, 'offline_sync_bn');
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 1));
+    await tester.runAsync(database.close);
   });
 }

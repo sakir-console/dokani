@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../network/api_client.dart';
@@ -71,7 +72,7 @@ class SyncApi {
         final response = await _dio.post<Map<String, dynamic>>(
           '/sync/push',
           data: {
-            'device': {'uuid': deviceUuid, 'platform': 'android'},
+            'device': {'uuid': deviceUuid, 'platform': defaultTargetPlatform.name},
             'sales': sales,
             'due_collections': dueCollections,
           },
