@@ -63,7 +63,7 @@ class CartScreen extends ConsumerWidget {
         .read(cartProvider.notifier)
         .setQuantity(line.variantId, Exact.milli(parsed), allowNegativeStock: allowNegative);
     if (!ok) {
-      final available = '${Formatters.quantity(Exact.quantity(line.stockMilli), locale)} ${line.unitLabel}';
+      final available = '${Formatters.quantity(Exact.quantity(line.stockMilli), locale)} ${line.unitLabel(locale)}';
       messenger.showSnackBar(SnackBar(content: Text(l10n.notEnoughStock(available))));
     }
   }
@@ -123,7 +123,7 @@ class CartScreen extends ConsumerWidget {
                             ],
                           ),
                           Text(
-                            '${money(line.unitPricePaisa)} / ${line.unitLabel}',
+                            '${money(line.unitPricePaisa)} / ${line.unitLabel(locale)}',
                             style: text.bodySmall?.copyWith(color: AppColors.textMuted),
                           ),
                           Row(
@@ -152,7 +152,7 @@ class CartScreen extends ConsumerWidget {
                                   );
                                   if (!ok) {
                                     final available =
-                                        '${Formatters.quantity(Exact.quantity(line.stockMilli), locale)} ${line.unitLabel}';
+                                        '${Formatters.quantity(Exact.quantity(line.stockMilli), locale)} ${line.unitLabel(locale)}';
                                     ScaffoldMessenger.of(context)
                                       ..hideCurrentSnackBar()
                                       ..showSnackBar(SnackBar(content: Text(l10n.notEnoughStock(available))));
@@ -213,9 +213,19 @@ class CartScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
-                PrimaryButton(label: l10n.checkout, onPressed: () => context.push('/pos/checkout')),
               ],
+            ),
+      // Always in reach, however long the cart is.
+      bottomNavigationBar: cart.isEmpty
+          ? null
+          : SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: PrimaryButton(
+                  label: '${l10n.checkout} · ${money(cart.grandTotalPaisa)}',
+                  onPressed: () => context.push('/pos/checkout'),
+                ),
+              ),
             ),
     );
   }

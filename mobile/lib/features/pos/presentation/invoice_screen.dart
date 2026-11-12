@@ -120,20 +120,26 @@ class InvoiceScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
             ],
-            if (justCompleted)
-              PrimaryButton(
-                label: l10n.newSale,
-                icon: Icons.add,
-                onPressed: () {
-                  context.go('/home');
-                  unawaited(context.push('/pos'));
-                },
-              ),
           ],
         ),
       ),
+      // Straight after a sale, the next customer is one tap away.
+      bottomNavigationBar: justCompleted
+          ? SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: PrimaryButton(
+                  label: l10n.newSale,
+                  icon: Icons.add,
+                  onPressed: () {
+                    context.go('/home');
+                    unawaited(context.push('/pos'));
+                  },
+                ),
+              ),
+            )
+          : null,
     );
   }
 }

@@ -8,7 +8,7 @@ class CartLine {
   const CartLine({
     required this.variantId,
     required this.title,
-    required this.unitLabel,
+    required this.unit,
     required this.unitPricePaisa,
     required this.quantityMilli,
     required this.stockMilli,
@@ -17,7 +17,7 @@ class CartLine {
 
   final int variantId;
   final String title;
-  final String unitLabel;
+  final Unit unit;
   final int unitPricePaisa;
   final int quantityMilli;
 
@@ -27,10 +27,13 @@ class CartLine {
 
   int get totalPaisa => Exact.lineTotal(unitPricePaisa, quantityMilli);
 
+  /// "কেজি" / "Kilogram" for built-in units; a shop's own unit by its short name.
+  String unitLabel(String languageCode) => unit.isBuiltIn ? unit.label(languageCode) : unit.shortName;
+
   CartLine withQuantity(int quantityMilli) => CartLine(
         variantId: variantId,
         title: title,
-        unitLabel: unitLabel,
+        unit: unit,
         unitPricePaisa: unitPricePaisa,
         quantityMilli: quantityMilli,
         stockMilli: stockMilli,
@@ -81,7 +84,7 @@ class CartController extends Notifier<CartState> {
     final line = CartLine(
       variantId: variant.id,
       title: variant.name == null ? product.name : '${product.name} — ${variant.name}',
-      unitLabel: product.unit.shortName,
+      unit: product.unit,
       unitPricePaisa: Exact.paisa(variant.sellingPrice),
       quantityMilli: next,
       stockMilli: stock,

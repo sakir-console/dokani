@@ -12,10 +12,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dokani/features/catalog/data/models.dart';
+import 'package:dokani/features/customers/data/customer_repository.dart';
 
 import '../test/support/catalog_fakes.dart';
 import '../test/support/fakes.dart';
 import '../test/support/pump_app.dart';
+import '../test/support/sales_fakes.dart';
 
 /// Tests draw text with a placeholder font unless real fonts are loaded.
 Future<void> loadFonts() async {
@@ -129,5 +131,55 @@ void main() {
     await tester.tap(find.byIcon(Icons.edit_outlined));
     await tester.pumpAndSettle();
     await shoot(tester, 'product_form_bn');
+  });
+
+  testWidgets('point of sale', (tester) async {
+    usePhone(tester);
+    final catalog = FakeCatalogRepository(
+      products: [
+        makeProduct(id: 1, name: 'লাক্স সাবান', variants: [makeVariant(id: 100, price: '45.00', stock: '36.000', barcodes: ['SOAP'])]),
+        makeProduct(id: 2, name: 'মিনিকেট চাল', unit: kilogram, variants: [makeVariant(id: 200, price: '70.00', stock: '50.000')]),
+        makeProduct(id: 3, name: 'রাইস কুকার', variants: [makeVariant(id: 300, price: '1000.00', stock: '5.000')]),
+        makeProduct(id: 4, name: 'চিনি', unit: kilogram, variants: [makeVariant(id: 400, price: '135.00', stock: '0.000', status: StockStatus.out)]),
+      ],
+    );
+    final customers = FakeCustomerRepository([const Customer(id: 1, name: 'করিম মিয়া', phone: '01812345678', currentDue: '150.00')]);
+    final sales = FakeSalesRepository(catalog: catalog, customers: customers);
+    await pumpApp(tester, repository: signedInAs(), catalog: catalog, customers: customers, sales: sales);
+
+    await tapQuickAction(tester, 'new-sale');
+    await tester.tap(find.text('লাক্স সাবান'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('লাক্স সাবান'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('রাইস কুকার'));
+    await tester.pumpAndSettle();
+    await shoot(tester, 'pos_bn');
+
+    await tester.tap(find.text('কার্ট দেখুন'));
+    await tester.pumpAndSettle();
+    await shoot(tester, 'cart_bn');
+
+    await tester.tap(find.textContaining('বিল করুন ·'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).first, '600');
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).at(1), '01812345678');
+    await tester.pumpAndSettle(const Duration(milliseconds: 500));
+    await shoot(tester, 'checkout_bn');
+
+    await tester.ensureVisible(find.text('বিক্রি সম্পন্ন করুন'));
+    await tester.tap(find.text('বিক্রি সম্পন্ন করুন'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 500));
+    await shoot(tester, 'invoice_bn');
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    await shoot(tester, 'home_dashboard_bn');
+
+    await tapQuickAction(tester, 'collect-due');
+    await tester.tap(find.text('করিম মিয়া'));
+    await tester.pumpAndSettle();
+    await shoot(tester, 'customer_bn');
   });
 }
