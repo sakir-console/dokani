@@ -22,6 +22,10 @@ class SaleResource extends JsonResource
             'client_uuid' => $this->client_uuid,
             'invoice_no' => $this->invoice_no,
             'status' => $this->status->value,
+            // 'offline' when it was recorded on a phone without a connection and synced later.
+            'source' => $this->source,
+            'offline_ref' => $this->offline_ref,
+            'has_stock_conflict' => $this->has_stock_conflict,
             'sold_at' => $this->sold_at->toIso8601String(),
             'subtotal' => $this->subtotal,
             'discount_amount' => $this->discount_amount,

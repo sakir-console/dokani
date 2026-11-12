@@ -13,6 +13,7 @@ use App\Models\Payment;
 use App\Models\ProductVariant;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\ShopNotification;
 use App\Models\User;
 use App\Services\Audit\AuditLogger;
 use App\Services\Customers\CustomerService;
@@ -51,6 +52,37 @@ class CreateSale
         private readonly Entitlements $entitlements,
         private readonly AuditLogger $audit,
     ) {}
+
+    /** True while recording a sale that was made on a phone without a connection. */
+    private bool $offline = false;
+
+    private ?int $deviceId = null;
+
+    /**
+     * Records a sale that already happened offline.
+     *
+     * The goods have left the shop and the money has changed hands, so this
+     * never refuses for reasons that only make sense before a sale:
+     * the price is the one the customer paid, stock may go below zero (the
+     * sale is flagged and the owner notified), deleted products are still
+     * accepted, and plan and credit limits do not apply.
+     * Arithmetic that does not add up is still rejected.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{0: Sale, 1: bool}
+     */
+    public function handleOffline(array $data, User $actor, ?int $deviceId = null): array
+    {
+        $this->offline = true;
+        $this->deviceId = $deviceId;
+
+        try {
+            return $this->handle($data, $actor, canOverridePrice: true);
+        } finally {
+            $this->offline = false;
+            $this->deviceId = null;
+        }
+    }
 
     /**
      * @param  array<string, mixed>  $data  validated by StoreSaleRequest
@@ -96,7 +128,9 @@ class CreateSale
         $invoiceNo = $this->numbers->next();
 
         $soldAt = $this->soldAt($data['sold_at'] ?? null);
-        $this->assertWithinMonthlyLimit($soldAt);
+        if (! $this->offline) {
+            $this->assertWithinMonthlyLimit($soldAt);
+        }
 
         // --- Lines: price and cost come from the locked variant rows -------------
         $variantIds = array_values(array_unique(array_column($data['items'], 'variant_id')));
@@ -104,7 +138,9 @@ class CreateSale
 
         $variants = ProductVariant::query()
             ->whereIn('id', $variantIds)
-            ->with('product.unit')
+            // An offline sale may be of a product that was deleted before the phone synced.
+            ->when($this->offline, fn ($q) => $q->withTrashed())
+            ->with(['product' => fn ($q) => $q->when($this->offline, fn ($q) => $q->withTrashed())->with('unit')])
             ->orderBy('id')
             ->lockForUpdate()
             ->get()
@@ -120,7 +156,7 @@ class CreateSale
         foreach ($data['items'] as $index => $item) {
             $variant = $variants->get($item['variant_id']);
 
-            if ($variant === null || $variant->product === null || ! $variant->product->is_active) {
+            if ($variant === null || $variant->product === null || (! $this->offline && ! $variant->product->is_active)) {
                 throw $this->invalid("items.$index.variant_id", 'PRODUCT_UNAVAILABLE', __('This product is no longer available.'));
             }
 
@@ -136,7 +172,10 @@ class CreateSale
                 if (! $canOverridePrice) {
                     throw new ApiException('PRICE_OVERRIDE_NOT_ALLOWED', __('The price of ":name" has changed or you are not allowed to change it. Refresh and try again.', ['name' => $variant->product->name]), 403);
                 }
-                $overrides[] = ['variant_id' => $variant->id, 'catalog_price' => Dec::money($catalogPrice), 'sold_at_price' => Dec::money($unitPrice)];
+                // Offline, a different price is just the price that was on the phone at the time.
+                if (! $this->offline) {
+                    $overrides[] = ['variant_id' => $variant->id, 'catalog_price' => Dec::money($catalogPrice), 'sold_at_price' => Dec::money($unitPrice)];
+                }
             }
 
             $gross = $unitPrice->multipliedBy($quantity)->toScale(2, RoundingMode::HalfUp);
@@ -158,7 +197,12 @@ class CreateSale
         }
 
         // --- Stock: checked across the whole cart, before anything is written ----
-        if (! $shop->resolvedSettings()['allow_negative_stock']) {
+        $stockConflict = false;
+        foreach ($needed as $variantId => $quantity) {
+            $stockConflict = $stockConflict || $quantity->isGreaterThan(Dec::of($variants[$variantId]->stock_quantity));
+        }
+
+        if (! $this->offline && ! $shop->resolvedSettings()['allow_negative_stock']) {
             $short = [];
             foreach ($data['items'] as $index => $item) {
                 $variant = $variants[$item['variant_id']];
@@ -219,7 +263,7 @@ class CreateSale
         // --- Customer: mandatory when anything is left unpaid ------------------------
         $customer = $this->resolveCustomer($data, $actor, $due);
 
-        if ($customer !== null && $due->isPositive() && $customer->credit_limit !== null
+        if (! $this->offline && $customer !== null && $due->isPositive() && $customer->credit_limit !== null
             && Dec::of($customer->current_due)->plus($due)->isGreaterThan(Dec::of($customer->credit_limit))) {
             throw $this->invalid('due_amount', 'CREDIT_LIMIT_EXCEEDED', __(':name\'s credit limit is :limit and they already owe :due.', [
                 'name' => $customer->name, 'limit' => $customer->credit_limit, 'due' => $customer->current_due,
@@ -244,6 +288,12 @@ class CreateSale
         $sale->sold_at = $soldAt;
         $sale->received_at = now();
         $sale->created_by = $actor->id;
+        if ($this->offline) {
+            $sale->source = 'offline';
+            $sale->offline_ref = $data['offline_ref'] ?? null;
+            $sale->device_id = $this->deviceId;
+            $sale->has_stock_conflict = $stockConflict && ! $shop->resolvedSettings()['allow_negative_stock'];
+        }
         $sale->save();
 
         foreach ($lines as $line) {
@@ -268,6 +318,9 @@ class CreateSale
             $this->stock->change($variant->id, StockMovementType::Sale, $line['quantity']->negated(), $actor, [
                 'unit_cost' => Dec::money($line['unitCost']),
                 'reference' => $sale,
+                // The offline sale already happened: stock follows reality, even below zero.
+                'allow_negative' => $this->offline,
+                'include_deleted' => $this->offline,
             ]);
         }
 
@@ -316,6 +369,21 @@ class CreateSale
             $this->audit->log('sale.price_overridden', $sale, null, ['invoice_no' => $invoiceNo, 'lines' => $overrides]);
         }
 
+        if ($sale->has_stock_conflict) {
+            // Nothing is rejected; the owner is told so the stock count can be corrected.
+            $names = collect($lines)
+                ->filter(fn ($line) => $needed[$line['variant']->id]->isGreaterThan(Dec::of($line['variant']->stock_quantity)))
+                ->map(fn ($line) => trim($line['variant']->product->name.' '.($line['variant']->name ?? '')))
+                ->unique()->values()->all();
+
+            ShopNotification::create([
+                'type' => 'stock_conflict',
+                'title' => __('A sale made offline sold more than was in stock'),
+                'body' => __(':invoice: check the stock of :products.', ['invoice' => $invoiceNo, 'products' => implode(', ', $names)]),
+                'data' => ['sale_id' => $sale->id, 'invoice_no' => $invoiceNo, 'products' => $names],
+            ]);
+        }
+
         return [$sale, true];
     }
 
@@ -336,7 +404,7 @@ class CreateSale
         $id = $customerId ?? $this->customers->findOrCreate($phone, $data['customer']['name'] ?? null, $actor)->id;
 
         // Locked so the balance and totals cannot change under this sale.
-        $customer = Customer::query()->lockForUpdate()->find($id);
+        $customer = Customer::query()->when($this->offline, fn ($q) => $q->withTrashed())->lockForUpdate()->find($id);
 
         if ($customer === null) {
             throw $this->invalid('customer_id', 'VALIDATION_FAILED', __('The selected customer is invalid.'));
@@ -353,8 +421,10 @@ class CreateSale
         }
 
         $time = Carbon::parse($value);
+        // A phone may stay offline for a long time before it syncs.
+        $oldest = now()->subDays($this->offline ? 90 : 7);
 
-        return $time->isBetween(now()->subDays(7), now()->addMinutes(5)) ? $time : now();
+        return $time->isBetween($oldest, now()->addMinutes(5)) ? $time : now();
     }
 
     private function assertWithinMonthlyLimit(Carbon $soldAt): void

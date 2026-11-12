@@ -61,5 +61,11 @@
     "Choose a start and an end date.": "শুরু ও শেষের তারিখ বাছাই করুন।",
     "The end date must not be before the start date.": "শেষের তারিখ শুরুর তারিখের আগে হতে পারবে না।",
     "Choose a period of at most one year.": "সর্বোচ্চ এক বছরের সময়সীমা বাছাই করুন।",
-    "This report has :count rows. Choose a shorter period (at most :limit rows).": "এই রিপোর্টে :countটি সারি আছে। ছোট সময়সীমা বাছাই করুন (সর্বোচ্চ :limitটি সারি)।"
+    "This report has :count rows. Choose a shorter period (at most :limit rows).": "এই রিপোর্টে :countটি সারি আছে। ছোট সময়সীমা বাছাই করুন (সর্বোচ্চ :limitটি সারি)।",
+    "A sale made offline sold more than was in stock": "অফলাইনে করা একটি বিক্রিতে স্টকের চেয়ে বেশি বিক্রি হয়েছে",
+    ":invoice: check the stock of :products.": ":invoice: :products-এর স্টক মিলিয়ে দেখুন।",
+    "The customer for this payment was not found.": "এই পরিশোধের কাস্টমার পাওয়া যায়নি।",
+    "This record could not be read.": "এই তথ্যটি পড়া যায়নি।",
+    "The server could not save this record. It is still on your phone.": "সার্ভার এই তথ্যটি সেভ করতে পারেনি। এটি আপনার ফোনে আছে।",
+    "The sync position is not valid.": "সিঙ্কের অবস্থান সঠিক নয়।"
 }

@@ -80,6 +80,8 @@ class ProductService
                 }
 
                 $product->save();
+                // Always move updated_at, even when only a barcode changed, so phones pick the change up on their next sync.
+                $product->touch();
 
                 return $product;
             });

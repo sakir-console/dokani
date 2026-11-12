@@ -11,6 +11,7 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Support\Dec;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -25,7 +26,12 @@ class CollectDue
      * @param  array{client_uuid: string, amount: mixed, method: string, transaction_id?: ?string, reference?: ?string, paid_at?: ?string}  $data
      * @return array{0: Payment, 1: bool} the payment, and whether this call created it
      */
-    public function handle(Customer $customer, array $data, User $actor): array
+    /**
+     * @param  bool  $offline  the money was already received on a phone without a connection:
+     *                         it is recorded even if it is more than the server thinks is owed
+     *                         (the customer then has a credit), and at the time it was received.
+     */
+    public function handle(Customer $customer, array $data, User $actor, bool $offline = false): array
     {
         // Sent twice (a retry after a dropped connection)? Return the first result.
         if ($existing = Payment::query()->where('client_uuid', $data['client_uuid'])->first()) {
@@ -33,8 +39,8 @@ class CollectDue
         }
 
         try {
-            return DB::transaction(function () use ($customer, $data, $actor) {
-                $locked = Customer::query()->lockForUpdate()->findOrFail($customer->id);
+            return DB::transaction(function () use ($customer, $data, $actor, $offline) {
+                $locked = Customer::query()->withTrashed()->lockForUpdate()->findOrFail($customer->id);
 
                 if ($existing = Payment::query()->where('client_uuid', $data['client_uuid'])->first()) {
                     return [$existing, false];
@@ -43,7 +49,7 @@ class CollectDue
                 $amount = Dec::of($data['amount']);
                 $due = Dec::of($locked->current_due);
 
-                if ($amount->isGreaterThan($due)) {
+                if (! $offline && $amount->isGreaterThan($due)) {
                     $message = $due->isPositive()
                         ? __('The customer owes :due. You cannot collect more than that.', ['due' => Dec::money($due)])
                         : __('This customer has no due.');
@@ -59,7 +65,9 @@ class CollectDue
                 $payment->amount = Dec::money($amount);
                 $payment->transaction_id = $data['transaction_id'] ?? null;
                 $payment->reference = $data['reference'] ?? null;
-                $payment->paid_at = now();
+                $payment->paid_at = $offline && ! empty($data['paid_at']) && Carbon::parse($data['paid_at'])->isBetween(now()->subDays(90), now()->addMinutes(5))
+                    ? Carbon::parse($data['paid_at'])
+                    : now();
                 $payment->created_by = $actor->id;
                 $payment->save();
 

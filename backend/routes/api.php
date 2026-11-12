@@ -9,11 +9,13 @@ use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\GlobalCatalogController;
 use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\MetaController;
+use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\SaleController;
 use App\Http\Controllers\Api\V1\ShopController;
 use App\Http\Controllers\Api\V1\StockController;
+use App\Http\Controllers\Api\V1\SyncController;
 use App\Http\Controllers\Api\V1\UnitController;
 use App\Http\Controllers\Api\V1\VendorController;
 use App\Http\Controllers\PublicInvoiceController;
@@ -104,6 +106,19 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
             });
 
             Route::get('dashboard', DashboardController::class);
+
+            Route::get('notifications', [NotificationController::class, 'index']);
+            Route::post('notifications/read-all', [NotificationController::class, 'markAllRead']);
+            Route::post('notifications/{notification}/read', [NotificationController::class, 'markRead']);
+
+            // Offline mode: the phone pulls what changed and pushes what it recorded offline.
+            Route::middleware('module:offline')->group(function () {
+                Route::post('devices', [SyncController::class, 'registerDevice']);
+                Route::get('sync/products', [SyncController::class, 'products']);
+                Route::get('sync/customers', [SyncController::class, 'customers']);
+                Route::get('sync/categories', [SyncController::class, 'categories']);
+                Route::post('sync/push', [SyncController::class, 'push']);
+            });
 
             Route::middleware('module:customers')->group(function () {
                 Route::get('customers', [CustomerController::class, 'index']);
