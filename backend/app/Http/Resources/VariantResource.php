@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\Tenancy\TenantContext;
 use App\Support\Dec;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -15,12 +16,17 @@ class VariantResource extends JsonResource
     {
         $stock = Dec::of($this->stock_quantity);
 
+        // What the shop paid is for those who manage the catalogue or see profit, not for every cashier.
+        // The app hides it too, but the phone keeps a copy of what it is sent, so it must not be sent.
+        $role = app(TenantContext::class)->membership()?->role;
+        $seesCost = $role?->can('catalog.manage') || $role?->can('reports.view');
+
         return [
             'id' => $this->id,
             'name' => $this->name,
             'attributes' => $this->options,
             'sku' => $this->sku,
-            'purchase_price' => $this->purchase_price,
+            'purchase_price' => $this->when($seesCost, $this->purchase_price),
             'selling_price' => $this->selling_price,
             'stock_quantity' => $this->stock_quantity,
             'stock_status' => match (true) {

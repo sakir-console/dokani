@@ -118,6 +118,8 @@ Reads need the `products` module (in every plan). Writes also need the `catalog.
 - A barcode can belong to one variant per shop (`422 BARCODE_TAKEN`).
 - Quantities must be whole numbers unless the product's unit allows decimals (`422 QUANTITY_MUST_BE_WHOLE`).
 
+In responses, `purchase_price` is present only for roles with `catalog.manage` or `reports.view` (owner, manager). A cashier's phone is never sent what the shop paid.
+
 ## Vendors — ✅ implemented in Phase 2 (module `vendors`)
 
 | Method | Path | Notes |

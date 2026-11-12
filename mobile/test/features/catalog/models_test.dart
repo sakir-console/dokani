@@ -90,4 +90,11 @@ void main() {
     expect(variants[1], containsPair('stock_quantity', '6'));
     expect(variants[1], containsPair('selling_price', '260'));
   });
+
+  test('a product sent to a cashier has no purchase price, and still parses', () {
+    final variant = Variant.fromJson({'id': 1, 'name': null, 'selling_price': '60.00', 'stock_quantity': '5.000', 'stock_status': 'in', 'barcodes': <String>[]});
+
+    expect(variant.sellingPrice, '60.00');
+    expect(variant.purchasePrice, '0.00');
+  });
 }

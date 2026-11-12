@@ -476,6 +476,28 @@ class SyncTest extends TestCase
         $this->assertSame('10.000', $this->stockOf($variant->id));
     }
 
+    public function test_a_cashier_is_never_sent_what_the_shop_paid_for_its_products(): void
+    {
+        $this->createProduct($this->shop, ['name' => 'Soap'], [
+            ['purchase_price' => '50', 'selling_price' => '60', 'stock_quantity' => '10', 'barcodes' => ['COST-1']],
+        ]);
+        $cashier = $this->addMember($this->shop, ShopRole::Cashier);
+        $manager = $this->addMember($this->shop, ShopRole::Manager);
+
+        // Every place a product reaches a phone: the sync copy, the list, the product page, a scan.
+        $paths = ['/api/v1/sync/products', '/api/v1/products', '/api/v1/barcodes/lookup?code=COST-1'];
+
+        foreach ($paths as $path) {
+            $forCashier = $this->asUser($cashier)->getJson($path)->assertOk();
+            $this->assertStringNotContainsString('purchase_price', $forCashier->getContent(), $path);
+            $this->assertStringContainsString('"selling_price":"60.00"', $forCashier->getContent(), $path);
+
+            foreach ([$manager, $this->shop->owner] as $trusted) {
+                $this->assertStringContainsString('"purchase_price":"50.00"', $this->asUser($trusted)->getJson($path)->assertOk()->getContent(), $path);
+            }
+        }
+    }
+
     public function test_a_suspended_shop_cannot_sync_and_nothing_is_stored_until_it_is_restored(): void
     {
         $variant = $this->createProduct($this->shop)->variants[0];

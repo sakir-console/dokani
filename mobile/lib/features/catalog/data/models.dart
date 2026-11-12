@@ -92,7 +92,8 @@ class Variant {
         id: json['id'] as int,
         name: json['name'] as String?,
         sku: json['sku'] as String?,
-        purchasePrice: '${json['purchase_price']}',
+        // Not sent to roles that may not see what the shop paid.
+        purchasePrice: json['purchase_price'] == null ? '0.00' : '${json['purchase_price']}',
         sellingPrice: '${json['selling_price']}',
         stockQuantity: '${json['stock_quantity']}',
         stockStatus: StockStatus.parse(json['stock_status'] as String?),

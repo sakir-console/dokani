@@ -251,9 +251,9 @@ A local database on the phone (Drift), cached products and barcodes with delta s
 
 | Suite | Result |
 |---|---|
-| `backend`: `php artisan test` | 248 tests, all passing (MariaDB 10.11) |
+| `backend`: `php artisan test` | 249 tests, all passing (MariaDB 10.11) |
 | `mobile`: `flutter analyze` | no issues |
-| `mobile`: `flutter test` | 220 tests, all passing |
+| `mobile`: `flutter test` | 221 tests, all passing |
 | `mobile`: `flutter test tool/sync_contract_test.dart` | passing against a locally running backend |
 
 **Checked by hand**
@@ -275,7 +275,8 @@ A local database on the phone (Drift), cached products and barcodes with delta s
 - A clear refusal from the server at the checkout (HTTP 4xx other than 401, 408, 429) is shown to the cashier and not queued. Everything else keeps the record: no connection, timeout, expired login, rate limit, server fault.
 - Failed records are retried on every sync, because the cause may have been fixed on the server. Only an owner or manager can delete one, after a warning, and only if it is in the failed state.
 - Sales pushed from the queue are never refused for stock, plan limits or credit limits: the goods have left the shop. They are refused only if the arithmetic is wrong, the product never existed in this shop, or the user may not sell.
-- The phone's database belongs to the shop, not the login, and is **kept on logout** so unsent sales survive. It is not encrypted. It holds product prices (cost price only if the user's role may see it) and customers' names, phone numbers and balances.
+- The phone's database belongs to the shop, not the login, and is **kept on logout** so unsent sales survive. It is not encrypted. It holds product prices and customers' names, phone numbers and balances.
+- **Cost prices are no longer sent to cashiers.** Until this phase the API returned `purchase_price` to every role and only the app hid it. Because the phone now keeps a copy of what it receives, the server omits it unless the role has `catalog.manage` or `reports.view` (owner, manager).
 - The pull cursor is saved only after every page of a round has arrived; an interrupted download starts that round again.
 - Retry is a fixed 45 seconds while something is waiting, plus app resume, sign-in and the manual button. There is no listener for "connectivity changed" and no exponential backoff, to avoid another plugin that cannot be tested here.
 - The temporary invoice reference is `OFF-` plus eight characters of the sale's id rather than a per-device counter, so it needs no coordination.
