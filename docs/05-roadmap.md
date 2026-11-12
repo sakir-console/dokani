@@ -69,7 +69,7 @@ Legend: ✅ done and tested · 🟡 partly done · ⬜ not started · – not ap
 | Due collection | ✅ | – | ✅ | Payments reduce the customer's balance; they are not allocated to individual invoices |
 | Invoices (page, PDF, QR) | ✅ | – | 🟡 | Public page, PDF (A4/80mm/58mm), QR. The app shares a link and opens the PDF in the browser; it does not attach the PDF file. Printing is Phase 7 |
 | Dashboard | ✅ | ✅ | ✅ | Shop: today's sales, profit, orders, items, customer due, stock alerts. Recent sales are in the API but not shown on the home screen |
-| Reports and exports | ⬜ | – | ⬜ | Phase 4 |
+| Reports and exports | ✅ | – | ✅ | The daily breakdown is API-only; the app shows no chart. Dates and unit names inside reports are in English even in the Bangla UI |
 | Offline sync | ⬜ | – | 🟡 | The app opens and stays signed in offline from a cached session; offline selling is Phase 5 |
 | Subscription management | 🟡 | ⬜ | ⬜ | Data model and enforcement exist; no renew/upgrade actions yet |
 | Audit log | ✅ | 🟡 | – | Written for registration, shop changes, password changes, admin actions; shown per shop, no global viewer yet |
@@ -194,6 +194,47 @@ The multi-process sale test deadlocked: when several first sales of a shop arriv
 - Filters on the app's sales history; ledger paging; choosing the PDF width in the app.
 - Offline invoices and offline sales (Phase 5).
 
-**Next: Phase 4 — reports**
+## Phase 4 record
 
-Summary (sales, orders, items, paid, due, discounts, gross profit), sales by payment method including due collections, best sellers, low stock, sales history and dues, date ranges in the shop's time zone, Excel/CSV/PDF export, and the report screens in the app.
+**Automated checks at the end of Phase 4**
+
+| Suite | Result |
+|---|---|
+| `backend`: `php artisan test` | 224 tests, all passing (MariaDB 10.11) |
+| `mobile`: `flutter analyze` | no issues |
+| `mobile`: `flutter test` | 164 tests, all passing |
+
+**Checked by hand**
+
+- Reports over real HTTP after a sale in Bangla with a decimal quantity: summary and period metadata.
+- The PDF export rendered to an image: landscape for the wide sales table, Bangla shop and customer names intact, page numbers.
+- The Excel export is read back in the tests with PhpSpreadsheet (cell types and values), not just checked for a file signature.
+- The report screens rendered to images in Bangla.
+
+**Not verified**
+
+- Still no run on an Android device: the date-range picker, saving the downloaded file and the share sheet with a file attachment.
+- Opening the exported Excel and CSV files in Microsoft Excel or Google Sheets themselves.
+- Report speed on a shop with tens of thousands of sales. The queries use the existing indexes but have not been measured.
+
+**Decisions made during Phase 4**
+
+- The week starts on Saturday (configurable with `WEEK_STARTS_ON`).
+- "Last 7 days" means today and the six days before it.
+- Payment-method figures follow the money by the day it moved, so a sale cancelled on a later day shows as a refund on that later day.
+- Bill-level discounts are not spread across products in the best-seller list; product revenue there is after line discounts only.
+- Reports need both the `reports` module and the `reports.view` permission (owner and manager), because they show cost and profit. Exports are a separate module (Standard plan and above in the placeholder plans).
+- Exports are produced during the request, limited to 10,000 rows. Larger periods must be narrowed; background export jobs were not built.
+- CSV is written directly rather than through the spreadsheet library, so amounts keep two decimals.
+- The app downloads an export itself (the request needs the login token) and passes the file to the share sheet, where it can be saved, opened or sent.
+- `maatwebsite/excel` 4.0 (PhpSpreadsheet 5) was added.
+
+**Left for later from Phase 4's scope**
+
+- A chart of daily sales in the app (the data endpoint exists).
+- Localised dates and unit names inside report screens and exported files; export headings are English.
+- Background exports for very large periods.
+
+**Next: Phase 5 — offline mode**
+
+A local database on the phone (Drift), cached products and barcodes with delta sync, an outbox for offline sales and due collections, push with per-record results, stock-conflict flags, device registration, sync status in the app and offline receipts.

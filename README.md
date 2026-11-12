@@ -23,7 +23,7 @@ A multi-tenant shop management platform: a Flutter app for shop owners (products
 
 ## Status
 
-Phases 1 to 3 are complete: authentication, multi-tenant isolation, plans and modules, the admin panel (shops, global catalogue), products with variants and barcodes, stock, vendors, the point of sale with split and partial payments, customer dues and ledger, and invoices with PDF and QR.
-Reports, offline selling, subscription management and printing are not built yet.
+Phases 1 to 4 are complete: authentication, multi-tenant isolation, plans and modules, the admin panel (shops, global catalogue), products with variants and barcodes, stock, vendors, the point of sale with split and partial payments, customer dues and ledger, invoices with PDF and QR, and business reports with Excel, CSV and PDF export.
+Offline selling, subscription management and printing are not built yet.
 
 The project is **not production-ready**. The status table in [`docs/05-roadmap.md`](docs/05-roadmap.md) says exactly what is built and tested.

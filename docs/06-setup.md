@@ -55,6 +55,7 @@ Setting `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` makes the seeder create the
 | `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Optional first admin, created by the seeder | empty |
 | `SMS_DRIVER` | How OTP codes are sent | `log` |
 | `APP_URL` | Base of the public invoice links printed as QR codes. Must be the real public address in production | `http://localhost:8000` |
+| `WEEK_STARTS_ON` | First day of the week for "this week" reports: 6 = Saturday, 0 = Sunday, 1 = Monday | `6` |
 | `APP_MIN_VERSION` | Oldest app version the API accepts (reported by `/meta`) | `1.0.0` |
 
 **OTP in development.** With `SMS_DRIVER=log` the code is written to `storage/logs/laravel.log` and no SMS is sent.
@@ -95,6 +96,7 @@ Tests use the `dokani_test` database (see `phpunit.xml`) and reset it themselves
 | `tests/Feature/Api/DueTest.php` | Due requires a customer; partial and split payment; Total = Paid + Due; cash change; find-or-create customer by phone; credit limit; due collection in instalments; idempotent collection; ledger running balance; customer CRUD |
 | `tests/Feature/Api/VoidAndInvoiceTest.php` | Void reverses stock, ledger and payments by new rows; public invoice page and JSON leak nothing private; bad tokens; rate limit; PDF content and receipt widths (needs `pdftotext` to read the PDF, otherwise that check is skipped); dashboard figures and time zone |
 | `tests/Feature/Api/SaleConcurrencyTest.php` | Separate processes at once: no overselling, consecutive invoice numbers, one sale for eight identical requests, six due sales to one new customer all reach the ledger. Needs `pcntl` |
+| `tests/Feature/Api/ReportTest.php` | Summary figures with discounts, charges, a cancelled sale and a due collection; profit from frozen costs; every period against a fixed calendar, including the shop's midnight and Saturday week start; payment methods; best sellers; low stock; dues; plan and role gating; tenant isolation; CSV, Excel (read back with PhpSpreadsheet) and PDF exports; formula-injection protection |
 | `tests/Feature/Admin/GlobalCatalogAdminTest.php` | Admin catalogue screens: access, add with image and variants, validation, edit, hide, delete |
 | `tests/Feature/Admin/AdminPanelTest.php` | Admin guard is separate from shop users; login lockout; dashboard numbers; search and filters; suspend/restore is audited and takes effect on the API immediately |
 
@@ -155,4 +157,5 @@ FLUTTER_ROOT=$(dirname $(dirname $(which flutter))) flutter test tool/screenshot
 | `test/core/exact_test.dart`, `test/features/pos/cart_and_payment_test.dart` | Integer arithmetic matches the server's rounding; cart rules; who pays what at checkout (change, due, split) |
 | `test/features/pos/pos_flow_test.dart` | The counter end to end against an in-memory server: cash sale, change, partial and split payment, due needs a customer, new customer, variants, stock limits, cart edits, continuous scanning, retry with the same id, share, cancel, cashier limits |
 | `test/features/pos/customers_and_dashboard_test.dart` | Dashboard figures by role, due collection in instalments, customers, sales history |
+| `test/features/reports/reports_test.dart` | Who sees reports; period switching; figures; money received; best-seller ranking; export of the chosen report and file type; failure handling; Bangla |
 | `test/features/screens/*.dart` | The real app with a fake server: Bangla by default, language switch, form validation, login, registration, password reset, home, settings, shop editing, role and suspension rules |

@@ -17,6 +17,7 @@ import 'package:dokani/features/customers/data/customer_repository.dart';
 import '../test/support/catalog_fakes.dart';
 import '../test/support/fakes.dart';
 import '../test/support/pump_app.dart';
+import '../test/support/report_fakes.dart';
 import '../test/support/sales_fakes.dart';
 
 /// Tests draw text with a placeholder font unless real fonts are loaded.
@@ -181,5 +182,24 @@ void main() {
     await tester.tap(find.text('করিম মিয়া'));
     await tester.pumpAndSettle();
     await shoot(tester, 'customer_bn');
+  });
+
+  testWidgets('reports', (tester) async {
+    usePhone(tester);
+    await pumpApp(
+      tester,
+      repository: signedInAs(modules: ['products', 'pos', 'customers', 'offline', 'reports', 'exports']),
+      reports: FakeReportRepository(),
+    );
+    await tapQuickAction(tester, 'reports');
+    await shoot(tester, 'reports_bn');
+
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -560));
+    await tester.pumpAndSettle();
+    await shoot(tester, 'reports_bn_2');
+
+    await tester.tap(find.byIcon(Icons.file_download_outlined));
+    await tester.pumpAndSettle();
+    await shoot(tester, 'reports_export_bn');
   });
 }

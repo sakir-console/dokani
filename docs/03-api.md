@@ -223,19 +223,33 @@ Server behaviour, in order:
 The token is 32 random bytes (43 base64url characters). Database ids and invoice numbers do not work in its place.
 The public invoice contains no ids, no cost, no transaction ids, and the customer's phone only masked (`018*****678`).
 
-## Reports — Phase 4
+## Reports — ✅ implemented in Phase 4 (module `reports`, permission `reports.view`)
 
-All accept `range=today|yesterday|last_7_days|this_week|this_month|custom` with `from`, `to` for custom.
+Period: `range=today|yesterday|last_7_days|this_week|this_month|custom`, with `from` and `to` (`YYYY-MM-DD`, at most one year apart) for `custom`. Default `today`.
+Periods are whole calendar days in the shop's time zone. `last_7_days` includes today. `this_week` starts on Saturday (`WEEK_STARTS_ON`).
+Every response includes `meta.range` with the dates actually used.
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/reports/summary` | total sales, orders, units sold, paid, due, discounts, charges, cost, gross profit |
-| GET | `/reports/payment-methods` | totals per method, including due collections |
-| GET | `/reports/best-sellers` | by quantity and by revenue |
-| GET | `/reports/low-stock` | |
-| GET | `/reports/sales` | sales history rows |
-| GET | `/reports/dues` | customers with outstanding due |
-| POST | `/reports/{report}/export` | `format=xlsx|csv|pdf` → file, or a queued job + download URL for large ranges |
+| GET | `/reports/summary` | `orders, items_sold, total_sales, total_paid, total_due, total_discounts, additional_charges, revenue, cost_of_goods, gross_profit, due_collected, cancelled_orders, cancelled_amount` |
+| GET | `/reports/daily` | One row per day of the period, empty days included: `date, orders, sales, profit` |
+| GET | `/reports/payment-methods` | Per method: `sales, due_collections, refunds, net`; `totals`; `sold_on_due` |
+| GET | `/reports/best-sellers` | `by=quantity|revenue`, `limit` (max 100) → `product_name, variant_name, unit_name, quantity, revenue, profit` |
+| GET | `/reports/low-stock` | Variants at or below their threshold, emptiest first. Not tied to a period |
+| GET | `/reports/sales` | Sales in the period, newest first, cancelled ones included and marked |
+| GET | `/reports/dues` | Customers who owe money, largest first; `meta.total_due`, `meta.customers` |
+| GET | `/reports/{report}/export?format=xlsx|csv|pdf` | Also needs module `exports`. `report` is `summary, payment-methods, best-sellers, low-stock, sales, dues`. Returns the file. More than 10,000 rows → `422 EXPORT_TOO_LARGE` |
+
+How the figures are defined:
+
+- **Total sales** = Σ `grand_total` of completed sales. **Revenue** = goods after all discounts. **Cost of goods** = the cost frozen on each sale. **Gross profit** = revenue − cost, plus additional charges when the shop counts them as income.
+- **Total discounts** = bill discounts + line discounts.
+- **Due collected** is money received in the period against earlier dues; it is not part of the period's sales.
+- **Payment methods** count money by the day it moved: taken at the counter, collected against dues, refunded on cancellation. Due is not a method; it is reported as `sold_on_due`.
+- **Best sellers** use the names on the sale lines, so renamed or deleted products still appear. Revenue is after line discounts; bill-level discounts are not spread over lines.
+- Cancelled sales are excluded from every figure and counted separately.
+
+Exports: Excel keeps amounts numeric and phone numbers, barcodes and invoice numbers as text. CSV is UTF-8 with a byte-order mark and exact amounts. In both, text beginning with `=`, `+`, `-` or `@` is stored as plain text so a spreadsheet does not run it as a formula.
 
 ## Offline sync — Phase 5
 
