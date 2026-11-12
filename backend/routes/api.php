@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\GlobalCatalogController;
 use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\MetaController;
 use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\SaleController;
 use App\Http\Controllers\Api\V1\ShopController;
 use App\Http\Controllers\Api\V1\StockController;
@@ -128,6 +129,20 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
                 Route::get('sales/{sale}/invoice.pdf', [SaleController::class, 'pdf']);
                 Route::post('sales', [SaleController::class, 'store'])->middleware('permission:pos.sell');
                 Route::post('sales/{sale}/void', [SaleController::class, 'void'])->middleware('permission:sales.void');
+            });
+
+            // Reports show cost and profit, so they need the reports permission as well as the module.
+            Route::middleware(['module:reports', 'permission:reports.view'])->prefix('reports')->group(function () {
+                Route::get('summary', [ReportController::class, 'summary']);
+                Route::get('daily', [ReportController::class, 'daily']);
+                Route::get('payment-methods', [ReportController::class, 'paymentMethods']);
+                Route::get('best-sellers', [ReportController::class, 'bestSellers']);
+                Route::get('low-stock', [ReportController::class, 'lowStock']);
+                Route::get('sales', [ReportController::class, 'sales']);
+                Route::get('dues', [ReportController::class, 'dues']);
+
+                // Downloadable files are a separate, higher-plan module.
+                Route::get('{report}/export', [ReportController::class, 'export'])->middleware('module:exports');
             });
 
             Route::middleware('module:vendors')->group(function () {

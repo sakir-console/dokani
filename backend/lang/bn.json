@@ -56,5 +56,10 @@
     "Your plan allows :limit sales a month. Upgrade to keep selling.": "আপনার প্যাকেজে মাসে :limitটি বিক্রি করা যায়। বিক্রি চালিয়ে যেতে প্যাকেজ আপগ্রেড করুন।",
     "This sale has already been cancelled.": "এই বিক্রিটি আগেই বাতিল করা হয়েছে।",
     "No customer has this mobile number yet.": "এই মোবাইল নম্বরের কোনো কাস্টমার এখনো নেই।",
-    "This customer still has a balance and cannot be deleted.": "এই কাস্টমারের হিসাব বাকি আছে, তাই মুছা যাবে না।"
+    "This customer still has a balance and cannot be deleted.": "এই কাস্টমারের হিসাব বাকি আছে, তাই মুছা যাবে না।",
+    "Choose a valid date range.": "সঠিক সময়সীমা বাছাই করুন।",
+    "Choose a start and an end date.": "শুরু ও শেষের তারিখ বাছাই করুন।",
+    "The end date must not be before the start date.": "শেষের তারিখ শুরুর তারিখের আগে হতে পারবে না।",
+    "Choose a period of at most one year.": "সর্বোচ্চ এক বছরের সময়সীমা বাছাই করুন।",
+    "This report has :count rows. Choose a shorter period (at most :limit rows).": "এই রিপোর্টে :countটি সারি আছে। ছোট সময়সীমা বাছাই করুন (সর্বোচ্চ :limitটি সারি)।"
 }

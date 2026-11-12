@@ -32,6 +32,14 @@ return [
 
     'password_min_length' => 8,
 
+    // First day of the week for "this week" reports. 6 = Saturday, the usual start in Bangladesh; 0 = Sunday, 1 = Monday.
+    'week_starts_on' => (int) env('WEEK_STARTS_ON', 6),
+
+    'exports' => [
+        // Largest report a single export may contain. Bigger periods must be narrowed.
+        'max_rows' => 10000,
+    ],
+
     'uploads' => [
         'logo_max_kb' => 2048,
         'logo_max_px' => 512,
