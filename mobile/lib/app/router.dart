@@ -8,9 +8,16 @@ import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/register_screen.dart';
 import '../features/auth/presentation/reset_password_screen.dart';
 import '../features/auth/presentation/splash_screen.dart';
+import '../features/catalog/data/models.dart';
+import '../features/catalog/presentation/categories_screen.dart';
+import '../features/catalog/presentation/product_detail_screen.dart';
+import '../features/catalog/presentation/product_form_screen.dart';
+import '../features/catalog/presentation/products_screen.dart';
 import '../features/home/presentation/home_screen.dart';
+import '../features/scanner/scanner_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/shop/presentation/edit_shop_screen.dart';
+import '../features/vendors/presentation/vendors_screen.dart';
 
 const _publicPaths = {'/login', '/register', '/forgot-password', '/reset-password'};
 
@@ -58,6 +65,37 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => ResetPasswordScreen(phone: state.extra! as String),
       ),
       GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
+      GoRoute(
+        path: '/products',
+        builder: (_, state) => ProductsScreen(
+          initialFilter: switch (state.uri.queryParameters['stock']) {
+            'low' => StockFilter.low,
+            'out' => StockFilter.out,
+            _ => StockFilter.all,
+          },
+        ),
+        routes: [
+          // "new" is declared before ":id" so it is not read as a product id.
+          GoRoute(
+            path: 'new',
+            builder: (_, state) => ProductFormScreen(initialBarcode: state.extra is String ? state.extra! as String : null),
+          ),
+          GoRoute(
+            path: ':id',
+            redirect: (_, state) => int.tryParse(state.pathParameters['id']!) == null ? '/products' : null,
+            builder: (_, state) => ProductDetailScreen(productId: int.parse(state.pathParameters['id']!)),
+            routes: [
+              GoRoute(
+                path: 'edit',
+                builder: (_, state) => ProductFormScreen(productId: int.parse(state.pathParameters['id']!)),
+              ),
+            ],
+          ),
+        ],
+      ),
+      GoRoute(path: '/categories', builder: (_, _) => const CategoriesScreen()),
+      GoRoute(path: '/vendors', builder: (_, _) => const VendorsScreen()),
+      GoRoute(path: '/scan', builder: (_, _) => const ScannerScreen()),
       GoRoute(
         path: '/settings',
         builder: (_, _) => const SettingsScreen(),

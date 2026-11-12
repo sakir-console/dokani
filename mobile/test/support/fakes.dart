@@ -52,6 +52,8 @@ Map<String, dynamic> sessionJson({
       'settings': {'allow_negative_stock': false},
     };
 
+Session sessionFromJson(Map<String, dynamic> json) => Session.fromJson(json);
+
 Session testSession({String shopName = 'Rahim Store', String status = 'active', String role = 'owner'}) =>
     Session.fromJson(sessionJson(shopName: shopName, status: status, role: role));
 

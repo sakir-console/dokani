@@ -14,6 +14,8 @@ Future<void> main() async {
 
   runApp(
     ProviderScope(
+      // No silent automatic retries: a failed load shows its reason and a retry button.
+      retry: (_, _) => null,
       overrides: [sharedPreferencesProvider.overrideWithValue(preferences)],
       child: const DokaniApp(),
     ),

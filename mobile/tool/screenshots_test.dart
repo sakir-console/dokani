@@ -11,6 +11,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:dokani/features/catalog/data/models.dart';
+
+import '../test/support/catalog_fakes.dart';
 import '../test/support/fakes.dart';
 import '../test/support/pump_app.dart';
 
@@ -87,5 +90,44 @@ void main() {
     final session = testSession(status: 'suspended');
     await pumpApp(tester, repository: FakeAuthRepository(token: 't', cached: session, serverSession: session));
     await shoot(tester, 'home_suspended_bn');
+  });
+
+  testWidgets('catalogue', (tester) async {
+    usePhone(tester);
+    final catalog = FakeCatalogRepository(
+      categories: const [Category(id: 1, name: 'মুদি')],
+      products: [
+        makeProduct(id: 1, name: 'লাক্স সাবান', category: const NamedRef(id: 2, name: 'প্রসাধনী'), variants: [makeVariant(id: 100, price: '45.00', stock: '36.000', barcodes: ['8901030700019'])]),
+        makeProduct(id: 2, name: 'মিনিকেট চাল', unit: kilogram, category: const NamedRef(id: 1, name: 'মুদি'), variants: [makeVariant(id: 200, price: '70.00', cost: '62.50', stock: '2.500', status: StockStatus.low)]),
+        makeProduct(id: 3, name: 'চিনি', unit: kilogram, variants: [makeVariant(id: 300, price: '135.00', stock: '0.000', status: StockStatus.out)]),
+        makeProduct(
+          id: 4,
+          name: 'পোলো টি-শার্ট',
+          variants: [
+            makeVariant(id: 400, name: 'S', price: '350.00', cost: '200.00', stock: '4.000', status: StockStatus.low, barcodes: ['TS-S']),
+            makeVariant(id: 401, name: 'M', price: '370.00', cost: '210.00', stock: '12.000'),
+          ],
+        ),
+      ],
+    );
+    await pumpApp(tester, repository: signedInAs(), catalog: catalog);
+    await shoot(tester, 'home_catalog_bn');
+
+    await tapQuickAction(tester, 'products');
+    await shoot(tester, 'products_bn');
+
+    await tester.tap(find.text('পোলো টি-শার্ট'));
+    await tester.pumpAndSettle();
+    await shoot(tester, 'product_detail_bn');
+
+    await tester.tap(find.text('স্টক যোগ').first);
+    await tester.pumpAndSettle();
+    await shoot(tester, 'stock_in_bn');
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.edit_outlined));
+    await tester.pumpAndSettle();
+    await shoot(tester, 'product_form_bn');
   });
 }

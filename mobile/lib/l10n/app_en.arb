@@ -2,7 +2,6 @@
   "@@locale": "en",
   "appName": "Dokani",
   "tagline": "One app. Every shop.",
-
   "login": "Log in",
   "loginTitle": "Welcome back",
   "loginSubtitle": "Log in to manage your shop",
@@ -19,7 +18,6 @@
   "saved": "Saved",
   "retry": "Try again",
   "continueLabel": "Continue",
-
   "phone": "Mobile number",
   "phoneHint": "01XXXXXXXXX",
   "password": "Password",
@@ -35,28 +33,43 @@
   "removeLogo": "Remove",
   "showPassword": "Show password",
   "hidePassword": "Hide password",
-
   "errRequired": "This is required",
   "errPhone": "Enter a valid mobile number, like 01712345678",
   "errPasswordShort": "Use at least {min} characters",
-  "@errPasswordShort": { "placeholders": { "min": { "type": "int" } } },
+  "@errPasswordShort": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      }
+    }
+  },
   "errOtp": "Enter the {length}-digit code",
-  "@errOtp": { "placeholders": { "length": { "type": "int" } } },
+  "@errOtp": {
+    "placeholders": {
+      "length": {
+        "type": "int"
+      }
+    }
+  },
   "errNoInternet": "No internet connection. Check your connection and try again.",
   "errTimeout": "The server took too long to respond. Try again.",
   "errUnknown": "Something went wrong. Try again.",
   "errSessionExpired": "Please log in again.",
-
   "forgotTitle": "Reset your password",
   "forgotSubtitle": "We will send a code to your mobile number",
   "sendCode": "Send code",
   "resetTitle": "Enter the code",
   "resetSubtitle": "We sent a code to {phone}",
-  "@resetSubtitle": { "placeholders": { "phone": { "type": "String" } } },
+  "@resetSubtitle": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
   "otpCode": "Verification code",
   "resetPassword": "Reset password",
   "passwordResetDone": "Password changed. Log in with your new password.",
-
   "home": "Home",
   "settings": "Settings",
   "language": "Language",
@@ -68,9 +81,21 @@
   "account": "Account",
   "plan": "Plan",
   "planLine": "{plan} plan",
-  "@planLine": { "placeholders": { "plan": { "type": "String" } } },
+  "@planLine": {
+    "placeholders": {
+      "plan": {
+        "type": "String"
+      }
+    }
+  },
   "planExpires": "Renews on {date}",
-  "@planExpires": { "placeholders": { "date": { "type": "String" } } },
+  "@planExpires": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "planNoExpiry": "No expiry",
   "productLimit": "Products allowed",
   "staffLimit": "Staff accounts allowed",
@@ -79,14 +104,12 @@
   "roleOwner": "Owner",
   "roleManager": "Manager",
   "roleCashier": "Cashier",
-
   "shopSuspendedTitle": "Shop suspended",
   "shopSuspendedBody": "This shop has been suspended. Please contact support.",
   "shopInactiveTitle": "Shop inactive",
   "shopInactiveBody": "This shop is not active yet. Please contact support.",
   "offlineBanner": "You are offline. Showing saved information.",
   "refresh": "Refresh",
-
   "moduleProducts": "Products",
   "modulePos": "Sales (POS)",
   "moduleCustomers": "Customers & due",
@@ -96,7 +119,6 @@
   "moduleReports": "Reports",
   "moduleExports": "Excel & PDF export",
   "moduleGlobalCatalog": "Product catalogue",
-
   "shopTypeGrocery": "Grocery store",
   "shopTypeSuperShop": "Super shop",
   "shopTypeClothing": "Clothing store",
@@ -107,5 +129,184 @@
   "shopTypeHardware": "Hardware store",
   "shopTypeFruitVegetable": "Fruit & vegetable shop",
   "shopTypeMobileAccessories": "Mobile accessories shop",
-  "shopTypeGeneral": "General store"
+  "shopTypeGeneral": "General store",
+  "products": "Products",
+  "addProduct": "Add product",
+  "editProduct": "Edit product",
+  "scanBarcode": "Scan barcode",
+  "categories": "Categories",
+  "vendors": "Vendors",
+  "quickActions": "Quick actions",
+  "stockOverview": "Stock",
+  "totalProducts": "Products",
+  "lowStock": "Low stock",
+  "outOfStock": "Out of stock",
+  "inStock": "In stock",
+  "all": "All",
+  "searchProducts": "Search by name or barcode",
+  "search": "Search",
+  "noProductsTitle": "No products yet",
+  "noProductsBody": "Add your first product to start selling.",
+  "noResultsTitle": "Nothing found",
+  "noResultsBody": "Try a different name or filter.",
+  "productName": "Product name",
+  "category": "Category",
+  "brand": "Brand",
+  "unit": "Unit",
+  "vendor": "Vendor",
+  "none": "None",
+  "optional": "optional",
+  "purchasePrice": "Purchase price",
+  "sellingPrice": "Selling price",
+  "openingStock": "Opening stock",
+  "stock": "Stock",
+  "sku": "SKU",
+  "barcode": "Barcode",
+  "barcodes": "Barcodes",
+  "addBarcode": "Add another barcode",
+  "storageLocation": "Storage location",
+  "storageLocationHint": "Shelf, rack or room",
+  "description": "Description",
+  "lowStockAlertAt": "Low-stock alert at",
+  "lowStockAlertHint": "Leave empty to use the shop default",
+  "hasVariants": "This product has variants",
+  "hasVariantsHint": "Sizes, colours, weights or models, each with its own price and stock",
+  "variants": "Variants",
+  "variantN": "Variant {n}",
+  "@variantN": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "variantName": "Variant name",
+  "variantNameHint": "e.g. M, 500ml, 128GB",
+  "addVariant": "Add variant",
+  "removeVariant": "Remove variant",
+  "productPhoto": "Product photo",
+  "choosePhoto": "Choose photo",
+  "errNumber": "Enter a valid number",
+  "errWholeNumber": "Enter a whole number",
+  "errChooseUnit": "Choose a unit",
+  "priceBelowCost": "Selling price is lower than the purchase price",
+  "productSaved": "Product saved",
+  "photoUploadFailed": "The product was saved, but the photo could not be uploaded.",
+  "deleteProduct": "Delete product",
+  "deleteProductConfirm": "Delete \"{name}\"? It will no longer appear in your products.",
+  "@deleteProductConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "delete": "Delete",
+  "edit": "Edit",
+  "add": "Add",
+  "rename": "Rename",
+  "name": "Name",
+  "stockIn": "Stock in",
+  "stockOut": "Stock out",
+  "adjustStock": "Correct stock",
+  "quantity": "Quantity",
+  "costPerUnit": "Cost per unit",
+  "reason": "Reason",
+  "reasonHint": "Damaged, expired, own use…",
+  "countedQuantity": "Quantity counted",
+  "note": "Note",
+  "currentStock": "Current stock: {quantity}",
+  "@currentStock": {
+    "placeholders": {
+      "quantity": {
+        "type": "String"
+      }
+    }
+  },
+  "stockUpdated": "Stock updated",
+  "priceRange": "{from} – {to}",
+  "@priceRange": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "variantsCount": "{count} variants",
+  "@variantsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scanHint": "Point the camera at a barcode",
+  "torch": "Flashlight",
+  "cameraPermissionTitle": "Camera permission needed",
+  "cameraPermissionBody": "Allow camera access in your phone settings to scan barcodes.",
+  "cameraErrorTitle": "The camera could not be started",
+  "cameraErrorBody": "Close other apps that use the camera and try again, or type the barcode instead.",
+  "enterBarcodeManually": "Type the barcode",
+  "unknownBarcodeTitle": "No product with this barcode",
+  "unknownBarcodeBody": "Barcode {code} is not in your shop yet.",
+  "@unknownBarcodeBody": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "addAsNewProduct": "Add as new product",
+  "noCategoriesTitle": "No categories yet",
+  "noCategoriesBody": "Categories help you find products faster.",
+  "addCategory": "Add category",
+  "categoryName": "Category name",
+  "deleteCategoryConfirm": "Delete \"{name}\"? Its products stay, without a category.",
+  "@deleteCategoryConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "addBrand": "Add brand",
+  "brandName": "Brand name",
+  "noVendorsTitle": "No vendors yet",
+  "noVendorsBody": "Add the people and companies you buy from.",
+  "addVendor": "Add vendor",
+  "editVendor": "Edit vendor",
+  "vendorName": "Vendor name",
+  "companyName": "Company name",
+  "notes": "Notes",
+  "searchVendors": "Search vendors",
+  "deleteVendorConfirm": "Delete \"{name}\"? Their products stay, without a vendor.",
+  "@deleteVendorConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "productsCount": "{count} products",
+  "@productsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "phoneOptional": "Mobile number (optional)",
+  "vendorsNotInPlan": "Vendors are not included in your plan.",
+  "loadMoreFailed": "Could not load more. Tap to try again.",
+  "costLabel": "Cost {amount}",
+  "@costLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -22,6 +22,7 @@ class AppTextField extends StatelessWidget {
     this.maxLength,
     this.textCapitalization = TextCapitalization.none,
     this.onFieldSubmitted,
+    this.onChanged,
     this.enabled = true,
   });
 
@@ -39,6 +40,7 @@ class AppTextField extends StatelessWidget {
   final int? maxLength;
   final TextCapitalization textCapitalization;
   final ValueChanged<String>? onFieldSubmitted;
+  final ValueChanged<String>? onChanged;
   final bool enabled;
 
   @override
@@ -62,6 +64,7 @@ class AppTextField extends StatelessWidget {
           maxLength: maxLength,
           textCapitalization: textCapitalization,
           onFieldSubmitted: onFieldSubmitted,
+          onChanged: onChanged,
           style: Theme.of(context).textTheme.bodyLarge,
           decoration: InputDecoration(
             hintText: hint,
